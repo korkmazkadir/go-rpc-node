@@ -25,6 +25,7 @@ func NewGossipNode(app Application) *GossipNode {
 	node.peers = make([]RemoteNode, 0)
 	node.broadcastChan = make(chan Message, NumberOfBroadcastThread)
 	node.waitChan = make(chan struct{}, 1)
+
 	return node
 }
 
@@ -82,7 +83,7 @@ func (node *GossipNode) Start() (string, error) {
 	rpc.Register(node)
 
 	// create tcp address
-	tcpAddr, err := net.ResolveTCPAddr("tcp", ":")
+	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", err
 	}

@@ -27,14 +27,11 @@ func NewSimpleApp(appID int) SimpleApp {
 
 func (app SimpleApp) mainLoop() {
 	for {
-		select {
-		case message := <-app.incommingMessages:
-			log.Printf("[SimpleApp-%d] handling message tag: %s, payload: %s \n", app.id, message.Tag, message.Payload)
-			// Forwards the message
-			app.outgoingMessages <- message
-			//default:
-			//	time.Sleep(5 * time.Second)
-		}
+
+		message := <-app.incommingMessages
+		log.Printf("[SimpleApp-%d] handling message tag: %s, payload: %s \n", app.id, message.Tag, message.Payload)
+		// Forwards the message
+		app.outgoingMessages <- message
 
 	}
 }

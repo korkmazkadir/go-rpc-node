@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 
 	"../../application"
@@ -9,55 +10,29 @@ import (
 
 func main() {
 
-	twoNodes()
+	peerAddress := flag.String("peer", "", "adds a peer by address")
 
-	/*
-		app := application.NewSimpleApp()
-		node := node.NewGossipNode(app)
+	flag.Parse()
 
-		app.Start()
-		address, err := node.Start()
+	app := application.NewSimpleApp(1)
+	n := node.NewGossipNode(app)
+	app.Start()
+	address, err := n.Start()
+	if err != nil {
+		panic(err)
+	}
+
+	log.Println(*peerAddress)
+	if *peerAddress != "" {
+		log.Println("adding a peer")
+		peer, err := node.NewRemoteNode(*peerAddress)
 		if err != nil {
 			panic(err)
 		}
-
-		log.Printf("node started and listening on %s \n", address)
-
-		node.Wait()
-	*/
-
-}
-
-func twoNodes() {
-
-	app1 := application.NewSimpleApp(1)
-	node1 := node.NewGossipNode(app1)
-
-	app1.Start()
-	address1, err := node1.Start()
-	if err != nil {
-		panic(err)
+		n.AddPeer(*peer)
 	}
 
-	log.Printf("node1 address is %s\n", address1)
+	log.Println("node started ", address)
 
-	app2 := application.NewSimpleApp(2)
-	node2 := node.NewGossipNode(app2)
-
-	app2.Start()
-	address2, err := node2.Start()
-	if err != nil {
-		panic(err)
-	}
-
-	remoteNode2, err := node.NewRemoteNode(address2)
-	if err != nil {
-		panic(err)
-	}
-
-	node1.AddPeer(*remoteNode2)
-
-	node1.Wait()
-	node2.Wait()
-
+	n.Wait()
 }
