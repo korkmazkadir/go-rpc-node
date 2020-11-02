@@ -34,6 +34,25 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	return remoteNode, nil
 }
 
+//Connect sends a connection request message to the remote node
+func (remoteNode *RemoteNode) Connect(nodeAddress string) error {
+
+	connectionRequest := ConnectionRequest{
+		SenderAddress: nodeAddress,
+	}
+
+	m := Message{
+		Layer:   NETWORK,
+		Tag:     "ConnectionRequest",
+		Payload: EncodeToByte(connectionRequest),
+	}
+
+	var response Response
+	err := remoteNode.client.Call("GossipNode.Send", m, &response)
+
+	return err
+}
+
 // Send enques a message to send to specific peer
 //TODO: How to handle errors
 func (remoteNode *RemoteNode) Send(message Message) {

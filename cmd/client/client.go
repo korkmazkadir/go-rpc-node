@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/rpc"
 	"time"
@@ -10,20 +12,31 @@ import (
 
 func main() {
 
-	client, err := rpc.Dial("tcp", "127.0.0.1:54193")
+	serverAddress := flag.String("server", "", "server address")
+	flag.Parse()
+
+	if *serverAddress == "" {
+		fmt.Println("you should provide a server address using server flag")
+	}
+
+	client, err := rpc.Dial("tcp", *serverAddress)
+
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
 
-	message := node.Message{Tag: "ABC", Payload: "Hello"}
+	var index byte
 
 	for {
 
 		log.Println("sending a message")
+		message := node.Message{Layer: node.APPLICATION, Tag: "ABC", Payload: []byte{index}}
+
 		var response node.Response
 		client.Call("GossipNode.Send", message, &response)
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Millisecond)
+		index++
 
 	}
 

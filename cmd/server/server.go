@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"strings"
 
 	"../../application"
 	"../../node"
@@ -10,7 +11,7 @@ import (
 
 func main() {
 
-	peerAddress := flag.String("peer", "", "adds a peer by address")
+	peerAddresses := flag.String("peers", "", "semicolon seperated list peer addresses")
 
 	flag.Parse()
 
@@ -22,17 +23,32 @@ func main() {
 		panic(err)
 	}
 
-	log.Println(*peerAddress)
-	if *peerAddress != "" {
-		log.Println("adding a peer")
-		peer, err := node.NewRemoteNode(*peerAddress)
-		if err != nil {
-			panic(err)
+	log.Println(*peerAddresses)
+	if *peerAddresses != "" {
+
+		tokens := strings.Split(*peerAddresses, ";")
+
+		for _, address := range tokens {
+			connectToPeer(address, n)
 		}
-		n.AddPeer(*peer)
+
 	}
 
 	log.Println("node started ", address)
 
 	n.Wait()
+}
+
+func connectToPeer(peerAddress string, n *node.GossipNode) {
+
+	peer, err := node.NewRemoteNode(peerAddress)
+	if err != nil {
+		panic(err)
+	}
+
+	err = n.AddPeer(*peer)
+	if err != nil {
+		panic(err)
+	}
+
 }

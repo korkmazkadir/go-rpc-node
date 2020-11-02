@@ -11,44 +11,76 @@ type SimpleApp struct {
 	networkReadySig   chan struct{}
 	incommingMessages chan node.Message
 	outgoingMessages  chan node.Message
+
+	processedMessageDigests []string
 }
 
-func NewSimpleApp(appID int) SimpleApp {
+const MaxSizeProcessedMessageDigest = 100
+
+func NewSimpleApp(appID int) *SimpleApp {
 
 	app := SimpleApp{
-		id:                appID,
-		networkReadySig:   make(chan struct{}, 1),
-		incommingMessages: make(chan node.Message, 10),
-		outgoingMessages:  make(chan node.Message, 10),
+		id:                      appID,
+		networkReadySig:         make(chan struct{}, 1),
+		incommingMessages:       make(chan node.Message, 10),
+		outgoingMessages:        make(chan node.Message, 10),
+		processedMessageDigests: make([]string, 0, MaxSizeProcessedMessageDigest),
 	}
 
-	return app
+	return &app
 }
 
-func (app SimpleApp) mainLoop() {
+func (app *SimpleApp) isMessageProcessedBefore(message node.Message) bool {
+
+	messageHash := message.Hash()
+	for _, digest := range app.processedMessageDigests {
+		if digest == messageHash {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (app *SimpleApp) addToProcessedMessages(message node.Message) {
+
+	messageHash := message.Hash()
+	if len(app.processedMessageDigests) == (MaxSizeProcessedMessageDigest - 1) {
+		app.processedMessageDigests = app.processedMessageDigests[1:]
+	}
+
+	app.processedMessageDigests = append(app.processedMessageDigests, messageHash)
+
+}
+
+func (app *SimpleApp) mainLoop() {
 	for {
 
 		message := <-app.incommingMessages
-		log.Printf("[SimpleApp-%d] handling message tag: %s, payload: %s \n", app.id, message.Tag, message.Payload)
-		// Forwards the message
-		app.outgoingMessages <- message
+
+		if app.isMessageProcessedBefore(message) == false {
+			app.addToProcessedMessages(message)
+			log.Printf("[SimpleApp-%d] handling message tag: %s, payload: %s \n", app.id, message.Tag, message.Payload)
+			// Forwards the message
+			message.Forward()
+		}
 
 	}
 }
 
-func (app SimpleApp) HandleMessage(message node.Message) {
+func (app *SimpleApp) HandleMessage(message node.Message) {
 	app.incommingMessages <- message
 }
 
-func (app SimpleApp) OutgoingMessageChannel() chan node.Message {
+func (app *SimpleApp) OutgoingMessageChannel() chan node.Message {
 	return app.outgoingMessages
 }
 
-func (app SimpleApp) SignalChannel() chan struct{} {
+func (app *SimpleApp) SignalChannel() chan struct{} {
 	return app.networkReadySig
 }
 
-func (app SimpleApp) Start() {
+func (app *SimpleApp) Start() {
 
 	go func() {
 		//waits for network signal
