@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/rpc"
-	"time"
 
 	"../../node"
 )
@@ -35,7 +34,7 @@ func main() {
 		var response node.Response
 		client.Call("GossipNode.Send", message, &response)
 
-		time.Sleep(1 * time.Millisecond)
+		//time.Sleep(1 * time.Millisecond)
 		index++
 
 	}

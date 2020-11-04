@@ -1,41 +1,50 @@
 package node
 
 import (
+	"errors"
 	"log"
 	"net/rpc"
+	"sync"
 )
 
-const NumberOfWaitingMessages = 5
+const numberOfWaitingMessages = 10
 
 // RemoteNode describes remote interface of a gossip node
 type RemoteNode struct {
 	address            string
 	client             *rpc.Client
 	waitingMessageChan chan Message
+	wg                 sync.WaitGroup
+	done               chan struct{}
+	errorHandler       func(string, error)
 }
 
 // NewRemoteNode creates a remote node
 func NewRemoteNode(address string) (*RemoteNode, error) {
-	remoteNode := new(RemoteNode)
-	remoteNode.waitingMessageChan = make(chan Message, NumberOfWaitingMessages)
 
 	//Connects to a remote node and creates a client
-	remoteNode.address = address
-	client, err := rpc.Dial("tcp", remoteNode.address)
+	client, err := rpc.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
-	remoteNode.client = client
 
-	// starts a thread to send messages
-	// There is only a singl thread for a specific peer
-	go remoteNode.mainLoop()
+	rn := new(RemoteNode)
+	rn.client = client
+	rn.address = address
+	rn.waitingMessageChan = make(chan Message, numberOfWaitingMessages)
+	rn.wg = sync.WaitGroup{}
+	rn.done = make(chan struct{}, 1)
 
-	return remoteNode, nil
+	// Starts a thread to send messages
+	// There is only a single thread for a each peer
+	rn.wg.Add(1)
+	go rn.mainLoop()
+
+	return rn, nil
 }
 
 //Connect sends a connection request message to the remote node
-func (remoteNode *RemoteNode) Connect(nodeAddress string) error {
+func (rn *RemoteNode) Connect(nodeAddress string) error {
 
 	connectionRequest := ConnectionRequest{
 		SenderAddress: nodeAddress,
@@ -48,30 +57,59 @@ func (remoteNode *RemoteNode) Connect(nodeAddress string) error {
 	}
 
 	var response Response
-	err := remoteNode.client.Call("GossipNode.Send", m, &response)
+	err := rn.client.Call("GossipNode.Send", m, &response)
 
 	return err
 }
 
-// Send enques a message to send to specific peer
-//TODO: How to handle errors
-func (remoteNode *RemoteNode) Send(message Message) {
-	remoteNode.waitingMessageChan <- message
+// Close closes the remote connection to peer.
+func (rn *RemoteNode) Close() {
+	if rn.client != nil {
+		rn.client.Close()
+		rn.client = nil
+		rn.done <- struct{}{}
+	}
 }
 
-func (remoteNode *RemoteNode) mainLoop() {
+// AttachErrorHandler attaches an error handler to handle rpc method call errors
+func (rn *RemoteNode) AttachErrorHandler(handler func(string, error)) {
+	rn.errorHandler = handler
+}
+
+// Send enques a message to send to specific peer
+//TODO: How to handle errors
+func (rn *RemoteNode) Send(message Message) error {
+	select {
+	case rn.waitingMessageChan <- message:
+		return nil
+	default:
+		return errors.New(MessageQueuFullError)
+	}
+}
+
+func (rn *RemoteNode) mainLoop() {
 	for {
 
 		select {
-		case m := <-remoteNode.waitingMessageChan:
+		case m := <-rn.waitingMessageChan:
 
-			log.Printf("sending message with tag %s to remote node %s \n", m.Tag, remoteNode.address)
+			log.Printf("[RemoteNode-%s]Sending message %s \n", rn.address, m.Base64EncodedHash())
 			var response Response
-			err := remoteNode.client.Call("GossipNode.Send", m, &response)
+			err := rn.client.Call("GossipNode.Send", m, &response)
 			if err != nil {
-				log.Printf("an error occured during sending message to node %s %s \n", remoteNode.address, err)
+
+				if rn.errorHandler != nil {
+					rn.errorHandler(rn.address, err)
+				} else {
+					log.Printf("An error occured during sending message to node %s %s \n", rn.address, err)
+				}
+
 			}
 
+		case <-rn.done:
+			log.Printf("Connection to remote node %s  is closed \n", rn.address)
+			rn.wg.Done()
+			return
 		}
 
 	}

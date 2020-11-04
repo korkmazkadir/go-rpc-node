@@ -8,16 +8,19 @@ import (
 	"sync"
 )
 
-const NumberOfBroadcastThread = 5
-const MaxProcessedMessageMemorySize = 100
+//
+const numberOfBroadcastThread = 5
+const maxProcessedMessageMemorySize = 100
 
+//GossipNode keeps state of a gossip node
 type GossipNode struct {
-	App                Application
-	peers              []RemoteNode
+	App Application
+	//peers              []RemoteNode
+	peerMap            map[string]*RemoteNode
 	broadcastChan      chan Message
-	waitChan           chan struct{}
+	wg                 sync.WaitGroup
 	address            string
-	mutex              *sync.Mutex
+	peerMutex          *sync.Mutex
 	forwardMessageChan chan Message
 }
 
@@ -25,17 +28,18 @@ type GossipNode struct {
 func NewGossipNode(app Application) *GossipNode {
 	node := new(GossipNode)
 	node.App = app
-	node.peers = make([]RemoteNode, 0)
-	node.broadcastChan = make(chan Message, NumberOfBroadcastThread)
-	node.waitChan = make(chan struct{}, 1)
-	node.mutex = &sync.Mutex{}
+	//node.peers = make([]RemoteNode, 0)
+	node.peerMap = make(map[string]*RemoteNode)
+	node.broadcastChan = make(chan Message, numberOfBroadcastThread)
+	node.wg = sync.WaitGroup{}
+	node.peerMutex = &sync.Mutex{}
 	node.forwardMessageChan = make(chan Message, 10)
 
 	return node
 }
 
 // Send rpc
-func (node *GossipNode) Send(message *Message, reply *Response) error {
+func (n *GossipNode) Send(message *Message, reply *Response) error {
 	//log.Printf("[GossipNode-%s] tag: %s, payload: %s \n", node.address, message.Tag, message.Payload)
 
 	if message.Layer == NETWORK {
@@ -43,59 +47,68 @@ func (node *GossipNode) Send(message *Message, reply *Response) error {
 		if message.Tag == "ConnectionRequest" {
 			cr := ConnectionRequest{}
 			DecodeFromByte(message.Payload, &cr)
-			log.Printf("new connection request %+v", cr)
-			return node.acceptConnectionRequest(cr)
+			log.Printf("New connection request %+v", cr)
+			return n.acceptConnectionRequest(cr)
 		}
-		log.Printf("unknown message tag %+v", message)
+		log.Printf("Unknown message tag %+v", message)
 		return nil
 	}
 
 	// Here I need the sender nodes information!!!!
 	message.Forward = func() {
-		node.forwardMessageChan <- *message
+		n.forwardMessageChan <- *message
 	}
 
-	node.App.HandleMessage(*message)
+	n.App.HandleMessage(*message)
 	return nil
 }
 
 // It broadcast messages. It sends to all peers, implement except here
-func (node *GossipNode) broadcast() {
-	outgoingMessageChannel := node.App.OutgoingMessageChannel()
+func (n *GossipNode) broadcastLoop() {
+
+	outgoingMessageChannel := n.App.OutgoingMessageChannel()
 
 	for {
 		select {
 		case m := <-outgoingMessageChannel:
-
-			//set sender address of message
-			m.Sender = node.address
-
-			log.Println("broadcasts a message")
-			for _, peer := range node.peers {
-				peer.Send(m)
-			}
-
-		case m := <-node.forwardMessageChan:
-			node.forward(m, m.Sender)
-
+			n.forward(m, "")
+		case m := <-n.forwardMessageChan:
+			n.forward(m, m.Sender)
 		}
 	}
 }
 
-func (node *GossipNode) forward(message Message, exceptNodeAddress string) {
+func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 
 	//sets the address of the sender
-	message.Sender = node.address
+	message.Sender = n.address
 
-	log.Println("forwards a message except ", exceptNodeAddress)
-	for _, peer := range node.peers {
-		if peer.address != exceptNodeAddress {
-			peer.Send(message)
-		}
+	if exceptNodeAddress == "" {
+		log.Printf("Broadcasts the message %s \n", message.Base64EncodedHash())
+	} else {
+		log.Printf("Forwards the message %s except %s \n", message.Base64EncodedHash(), exceptNodeAddress)
 	}
+
+	n.peerMutex.Lock()
+	defer n.peerMutex.Unlock()
+
+	for address, peer := range n.peerMap {
+
+		if address == exceptNodeAddress {
+			continue
+		}
+
+		err := peer.Send(message)
+		if err != nil {
+			log.Printf("Error occured during sending a message to peer %s. Error: %s\n", address, err)
+		}
+
+	}
+
 }
 
-func (node *GossipNode) listenAndServe(listener *net.TCPListener) {
+func (n *GossipNode) listenAndServeLoop(listener *net.TCPListener) {
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -105,7 +118,7 @@ func (node *GossipNode) listenAndServe(listener *net.TCPListener) {
 				continue
 			} else {
 				// do something with bad errors
-				log.Printf("connection error: %v", err)
+				log.Printf("Connection error: %v", err)
 				// end server process, unsucessfully
 				os.Exit(1)
 			}
@@ -123,9 +136,10 @@ func (node *GossipNode) listenAndServe(listener *net.TCPListener) {
 
 // Start run threads and signals the application. It blocks
 // it returns the address of the node
-func (node *GossipNode) Start() (string, error) {
+func (n *GossipNode) Start() (string, error) {
 
-	rpc.Register(node)
+	//Registrers only send method
+	rpc.Register(n)
 
 	// create tcp address
 	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
@@ -139,53 +153,86 @@ func (node *GossipNode) Start() (string, error) {
 		return "", err
 	}
 
-	log.Println("server started on ", listener.Addr())
+	log.Println("Server started on ", listener.Addr())
 
 	//signal application
-	node.App.SignalChannel() <- struct{}{}
+	n.App.SignalChannel() <- struct{}{}
 
 	//starts threads to handle outgoing messages
-	go node.broadcast()
+	n.wg.Add(1)
+	go n.broadcastLoop()
 
 	//starts a thread to relpy incomming requests
-	go node.listenAndServe(listener)
+	n.wg.Add(1)
+	go n.listenAndServeLoop(listener)
 
 	//address := fmt.Sprintf("%s:%d", listener.Addr().String())
-	node.address = listener.Addr().String()
-	return node.address, nil
+	n.address = listener.Addr().String()
+	return n.address, nil
 }
 
 // Wait waits for the node to stop
-func (node *GossipNode) Wait() {
-	<-node.waitChan
+func (n *GossipNode) Wait() {
+	n.wg.Wait()
 }
 
 // AddPeer adds a peer to the node
-func (node *GossipNode) AddPeer(remote RemoteNode) error {
+func (n *GossipNode) AddPeer(remote *RemoteNode) error {
 
-	err := remote.Connect(node.address)
+	err := remote.Connect(n.address)
 	if err != nil {
 		return err
 	}
 
-	node.peers = append(node.peers, remote)
+	n.addPeer(remote)
 	return nil
 }
 
 //TODO not thread safe because of append
-func (node *GossipNode) acceptConnectionRequest(request ConnectionRequest) error {
-
-	node.mutex.Lock()
-	defer node.mutex.Unlock()
+func (n *GossipNode) acceptConnectionRequest(request ConnectionRequest) error {
 
 	rm, err := NewRemoteNode(request.SenderAddress)
 	if err != nil {
 		return err
 	}
 
-	log.Println("new peer connection added: ", request.SenderAddress)
-
-	node.peers = append(node.peers, *rm)
+	log.Printf("New peer connection request accepted from %s \n", request.SenderAddress)
+	n.addPeer(rm)
 
 	return nil
+}
+
+func (n *GossipNode) addPeer(peer *RemoteNode) {
+	address := peer.address
+
+	n.peerMutex.Lock()
+	defer n.peerMutex.Unlock()
+
+	//Attaches to simple error handler to handle rpc errors
+	peer.AttachErrorHandler(n.simpleErrorHandler)
+
+	previousConnection, isAvailable := n.peerMap[address]
+	if isAvailable == true {
+		log.Printf("Closing the previous connection to %s\n", address)
+		previousConnection.Close()
+	}
+	n.peerMap[address] = peer
+	log.Printf("New peer added to peer map %s\n", address)
+}
+
+func (n *GossipNode) simpleErrorHandler(nodeAddress string, err error) {
+
+	n.peerMutex.Lock()
+	defer n.peerMutex.Unlock()
+
+	log.Printf("Error occured during sending message to node %s.\n", err)
+	log.Printf("Connection to %s is shut down.\n", nodeAddress)
+
+	previousConnection, isAvailable := n.peerMap[nodeAddress]
+	if isAvailable == true {
+		log.Printf("Closing connection to %s because of a send error\n", nodeAddress)
+		previousConnection.Close()
+		delete(n.peerMap, nodeAddress)
+	}
+
 }

@@ -46,7 +46,7 @@ func connectToPeer(peerAddress string, n *node.GossipNode) {
 		panic(err)
 	}
 
-	err = n.AddPeer(*peer)
+	err = n.AddPeer(peer)
 	if err != nil {
 		panic(err)
 	}

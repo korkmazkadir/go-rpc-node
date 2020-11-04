@@ -60,7 +60,7 @@ func (app *SimpleApp) mainLoop() {
 
 		if app.isMessageProcessedBefore(message) == false {
 			app.addToProcessedMessages(message)
-			log.Printf("[SimpleApp-%d] handling message tag: %s, payload: %s \n", app.id, message.Tag, message.Payload)
+			log.Printf("[SimpleApp] Handling message %s \n", message.Base64EncodedHash())
 			// Forwards the message
 			message.Forward()
 		}
