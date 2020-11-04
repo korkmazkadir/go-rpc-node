@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"../../../node"
-	"../../application"
+	"github.com/korkmazkadir/go-rpc-node/example/application"
+	"github.com/korkmazkadir/go-rpc-node/node"
 )
 
 func main() {

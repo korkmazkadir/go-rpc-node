@@ -7,7 +7,7 @@ import (
 	"net/rpc"
 	"time"
 
-	"../../../node"
+	"github.com/korkmazkadir/go-rpc-node/node"
 )
 
 func main() {

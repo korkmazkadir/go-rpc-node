@@ -3,7 +3,7 @@ package application
 import (
 	"log"
 
-	"../../node"
+	"github.com/korkmazkadir/go-rpc-node/node"
 )
 
 type SimpleApp struct {
