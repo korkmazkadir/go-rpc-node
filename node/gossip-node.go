@@ -41,7 +41,7 @@ func NewGossipNode(app Application) *GossipNode {
 // Send rpc
 func (n *GossipNode) Send(message *Message, reply *Response) error {
 
-	if message.Layer == NETWORK {
+	if message.Layer == network {
 
 		if message.Tag == "ConnectionRequest" {
 			cr := ConnectionRequest{}
@@ -49,16 +49,22 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 			log.Printf("New connection request %+v", cr)
 			return n.acceptConnectionRequest(cr)
 		}
-		log.Printf("Unknown message tag %+v", message)
+
+		log.Printf("Unknown message tag for NETWORK layer message: %s \n", message.Tag)
+		return nil
+	} else if message.Layer == application {
+
+		// Upper layers can call Forward function to forward a message excep the sender
+		message.Forward = func() {
+			n.forwardMessageChan <- *message
+		}
+
+		n.App.HandleMessage(*message)
 		return nil
 	}
 
-	// Upper layers can call Forward function to forward a message excep the sender
-	message.Forward = func() {
-		n.forwardMessageChan <- *message
-	}
+	log.Printf("Unknown message layer %s\n", message.Layer)
 
-	n.App.HandleMessage(*message)
 	return nil
 }
 
@@ -205,7 +211,7 @@ func (n *GossipNode) addPeer(peer *RemoteNode) {
 	defer n.peerMutex.Unlock()
 
 	//Attaches to simple error handler to handle rpc errors
-	peer.AttachErrorHandler(n.simpleErrorHandler)
+	peer.attachErrorHandler(n.simpleErrorHandler)
 
 	previousConnection, isAvailable := n.peerMap[address]
 	if isAvailable == true {

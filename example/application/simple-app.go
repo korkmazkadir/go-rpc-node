@@ -3,7 +3,7 @@ package application
 import (
 	"log"
 
-	"../node"
+	"../../node"
 )
 
 type SimpleApp struct {

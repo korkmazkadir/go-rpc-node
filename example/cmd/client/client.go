@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/rpc"
+	"time"
 
-	"../../node"
+	"../../../node"
 )
 
 func main() {
@@ -29,12 +30,12 @@ func main() {
 	for {
 
 		log.Println("sending a message")
-		message := node.Message{Layer: node.APPLICATION, Tag: "ABC", Payload: []byte{index}}
+		message := node.NewMessage("ABC", []byte{index})
 
 		var response node.Response
 		client.Call("GossipNode.Send", message, &response)
 
-		//time.Sleep(1 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		index++
 
 	}

@@ -51,7 +51,7 @@ func (rn *RemoteNode) Connect(nodeAddress string) error {
 	}
 
 	m := Message{
-		Layer:   NETWORK,
+		Layer:   network,
 		Tag:     "ConnectionRequest",
 		Payload: EncodeToByte(connectionRequest),
 	}
@@ -72,7 +72,7 @@ func (rn *RemoteNode) Close() {
 }
 
 // AttachErrorHandler attaches an error handler to handle rpc method call errors
-func (rn *RemoteNode) AttachErrorHandler(handler func(string, error)) {
+func (rn *RemoteNode) attachErrorHandler(handler func(string, error)) {
 	rn.errorHandler = handler
 }
 

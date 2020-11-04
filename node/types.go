@@ -5,18 +5,39 @@ import (
 	"encoding/base64"
 )
 
+// MessageLayer defines layer of a message (NETWORK or APPLICATION)
+type messageLayer int
+
+const (
+	// network layer messages handled by GosipNode
+	network = iota
+	// application layer messages handled forwarded to registred application by the GosipNode
+	application = iota
+)
+
 // Message defines structure of network layer message
 type Message struct {
-	// Layer defines the layer of message
-	Layer MessageLayer
-	// Tag defines the type of a message. It is used to convert byte array to an object on the receiver side.
-	Tag string
-	// Payload keeps the encoded message content
-	Payload []byte
-	// Forward is a callback to forward message accordıng to decision of the application
-	Forward func()
 	// The address of sender 127.0.0.1:3456
 	Sender string
+	// Tag defines the type of a message. It is used to convert byte array to an object on the receiver side.
+	Tag string
+	// Forward is a callback to forward message accordıng to decision of the application
+	Forward func()
+
+	// Layer defines the layer of message
+	Layer messageLayer
+	// Payload keeps the encoded message content
+	Payload []byte
+}
+
+// NewMessage creates a network message
+func NewMessage(tag string, payload []byte) Message {
+	message := Message{
+		Tag:     tag,
+		Payload: payload,
+		Layer:   application,
+	}
+	return message
 }
 
 // Hash return hash256 digest of the message payload
@@ -35,16 +56,6 @@ func (m Message) hash() []byte {
 	h.Write(m.Payload)
 	return h.Sum(nil)
 }
-
-// MessageLayer defines layer of a message (NETWORK or APPLICATION)
-type MessageLayer int
-
-const (
-	// NETWORK layer messages handled by GosipNode
-	NETWORK = iota
-	// APPLICATION layer messages handled forwarded to registred application by the GosipNode
-	APPLICATION = iota
-)
 
 // Response is an empty struct to define response of Send rpc call on GosipNode
 type Response struct {
