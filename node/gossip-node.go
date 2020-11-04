@@ -8,14 +8,14 @@ import (
 	"sync"
 )
 
-//
+// Constants
+// TODO: write a parameters struct to accept the constants from the developer
 const numberOfBroadcastThread = 5
 const maxProcessedMessageMemorySize = 100
 
 //GossipNode keeps state of a gossip node
 type GossipNode struct {
-	App Application
-	//peers              []RemoteNode
+	App                Application
 	peerMap            map[string]*RemoteNode
 	broadcastChan      chan Message
 	wg                 sync.WaitGroup
@@ -28,11 +28,11 @@ type GossipNode struct {
 func NewGossipNode(app Application) *GossipNode {
 	node := new(GossipNode)
 	node.App = app
-	//node.peers = make([]RemoteNode, 0)
 	node.peerMap = make(map[string]*RemoteNode)
 	node.broadcastChan = make(chan Message, numberOfBroadcastThread)
 	node.wg = sync.WaitGroup{}
 	node.peerMutex = &sync.Mutex{}
+	// TODO: get the size of the channel as parameter
 	node.forwardMessageChan = make(chan Message, 10)
 
 	return node
@@ -40,7 +40,6 @@ func NewGossipNode(app Application) *GossipNode {
 
 // Send rpc
 func (n *GossipNode) Send(message *Message, reply *Response) error {
-	//log.Printf("[GossipNode-%s] tag: %s, payload: %s \n", node.address, message.Tag, message.Payload)
 
 	if message.Layer == NETWORK {
 
@@ -54,7 +53,7 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 		return nil
 	}
 
-	// Here I need the sender nodes information!!!!
+	// Upper layers can call Forward function to forward a message excep the sender
 	message.Forward = func() {
 		n.forwardMessageChan <- *message
 	}
@@ -123,9 +122,7 @@ func (n *GossipNode) listenAndServeLoop(listener *net.TCPListener) {
 				os.Exit(1)
 			}
 		} else {
-			// print connection info
-			//log.Printf("received rpc message %v %v", reflect.TypeOf(conn), conn)
-			// handle listener (client) connections via rpc
+
 			// using a goroutine (to handle more than one connection at a time)
 			go rpc.ServeConn(conn)
 		}
@@ -188,7 +185,6 @@ func (n *GossipNode) AddPeer(remote *RemoteNode) error {
 	return nil
 }
 
-//TODO not thread safe because of append
 func (n *GossipNode) acceptConnectionRequest(request ConnectionRequest) error {
 
 	rm, err := NewRemoteNode(request.SenderAddress)

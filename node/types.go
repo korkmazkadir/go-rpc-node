@@ -7,11 +7,15 @@ import (
 
 // Message defines structure of network layer message
 type Message struct {
-	Layer   MessageLayer
-	Tag     string
+	// Layer defines the layer of message
+	Layer MessageLayer
+	// Tag defines the type of a message. It is used to convert byte array to an object on the receiver side.
+	Tag string
+	// Payload keeps the encoded message content
 	Payload []byte
+	// Forward is a callback to forward message accordıng to decision of the application
 	Forward func()
-	//the address of sender 127.0.0.1:3456
+	// The address of sender 127.0.0.1:3456
 	Sender string
 }
 
