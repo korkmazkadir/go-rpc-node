@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const numberOfWaitingMessages = 10
+const numberOfWaitingMessages = 100
 
 // RemoteNode describes remote interface of a gossip node
 type RemoteNode struct {
