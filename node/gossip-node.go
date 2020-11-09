@@ -236,7 +236,7 @@ func (n *GossipNode) simpleErrorHandler(nodeAddress string, err error) {
 
 	previousConnection, isAvailable := n.peerMap[nodeAddress]
 	if isAvailable == true {
-		n.log.Printf("Closing connection to %s because of a send error\n", nodeAddress)
+		log.Printf("Closing connection to %s because of a send error\n", nodeAddress)
 		previousConnection.Close()
 		delete(n.peerMap, nodeAddress)
 	}

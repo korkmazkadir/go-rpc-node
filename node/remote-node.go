@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"log"
 	"net/rpc"
 	"sync"
@@ -80,12 +79,17 @@ func (rn *RemoteNode) attachErrorHandler(handler func(string, error)) {
 // Send enques a message to send to specific peer
 //TODO: How to handle errors
 func (rn *RemoteNode) Send(message Message) error {
-	select {
-	case rn.waitingMessageChan <- message:
-		return nil
-	default:
-		return errors.New(MessageQueuFullError)
-	}
+	/*
+		select {
+		case rn.waitingMessageChan <- message:
+			return nil
+		default:
+			return errors.New(MessageQueuFullError)
+		}
+	*/
+	// my be it should block
+	rn.waitingMessageChan <- message
+	return nil
 }
 
 func (rn *RemoteNode) mainLoop() {
@@ -102,13 +106,13 @@ func (rn *RemoteNode) mainLoop() {
 				if rn.errorHandler != nil {
 					rn.errorHandler(rn.address, err)
 				} else {
-					rn.log.Printf("An error occured during sending message to node %s %s \n", rn.address, err)
+					log.Printf("An error occured during sending message to node %s %s \n", rn.address, err)
 				}
 
 			}
 
 		case <-rn.done:
-			rn.log.Printf("Connection to remote node %s  is closed \n", rn.address)
+			log.Printf("Connection to remote node %s  is closed \n", rn.address)
 			rn.wg.Done()
 			return
 		}
