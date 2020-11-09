@@ -29,8 +29,11 @@ func main() {
 		peerAddresses = getPeerAddressesFromFlag(peerAddressesFlag)
 	}
 
+	flags := log.Ldate | log.Ltime | log.Lmsgprefix
+	nodeLogger := log.New(os.Stderr, "[node] ", flags)
+
 	app := application.NewSimpleApp(1)
-	n := node.NewGossipNode(app)
+	n := node.NewGossipNode(app, nodeLogger)
 	app.Start()
 	address, err := n.Start()
 	if err != nil {

@@ -22,10 +22,11 @@ type GossipNode struct {
 	address            string
 	peerMutex          *sync.Mutex
 	forwardMessageChan chan Message
+	log                *log.Logger
 }
 
 // NewGossipNode creates a GossipNode
-func NewGossipNode(app Application) *GossipNode {
+func NewGossipNode(app Application, logger *log.Logger) *GossipNode {
 	node := new(GossipNode)
 	node.App = app
 	node.peerMap = make(map[string]*RemoteNode)
@@ -34,6 +35,7 @@ func NewGossipNode(app Application) *GossipNode {
 	node.peerMutex = &sync.Mutex{}
 	// TODO: get the size of the channel as parameter
 	node.forwardMessageChan = make(chan Message, 10)
+	node.log = logger
 
 	return node
 }
@@ -46,11 +48,11 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 		if message.Tag == "ConnectionRequest" {
 			cr := ConnectionRequest{}
 			DecodeFromByte(message.Payload, &cr)
-			log.Printf("New connection request %+v", cr)
+			n.log.Printf("New connection request %+v", cr)
 			return n.acceptConnectionRequest(cr)
 		}
 
-		log.Printf("Unknown message tag for NETWORK layer message: %s \n", message.Tag)
+		n.log.Printf("Unknown message tag for NETWORK layer message: %s \n", message.Tag)
 		return nil
 	} else if message.Layer == application {
 
@@ -63,7 +65,7 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 		return nil
 	}
 
-	log.Printf("Unknown message layer %s\n", message.Layer)
+	n.log.Printf("Unknown message layer %d\n", message.Layer)
 
 	return nil
 }
@@ -89,9 +91,9 @@ func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 	message.Sender = n.address
 
 	if exceptNodeAddress == "" {
-		log.Printf("Broadcasts the message %s \n", message.Base64EncodedHash())
+		n.log.Printf("Broadcasts the message %s \n", message.Base64EncodedHash())
 	} else {
-		log.Printf("Forwards the message %s except %s \n", message.Base64EncodedHash(), exceptNodeAddress)
+		n.log.Printf("Forwards the message %s except %s \n", message.Base64EncodedHash(), exceptNodeAddress)
 	}
 
 	n.peerMutex.Lock()
@@ -105,7 +107,7 @@ func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 
 		err := peer.Send(message)
 		if err != nil {
-			log.Printf("Error occured during sending a message to peer %s. Error: %s\n", address, err)
+			n.log.Printf("Error occured during sending a message to peer %s. Error: %s\n", address, err)
 		}
 
 	}
@@ -123,7 +125,7 @@ func (n *GossipNode) listenAndServeLoop(listener *net.TCPListener) {
 				continue
 			} else {
 				// do something with bad errors
-				log.Printf("Connection error: %v", err)
+				n.log.Printf("Connection error: %v", err)
 				// end server process, unsucessfully
 				os.Exit(1)
 			}
@@ -156,7 +158,7 @@ func (n *GossipNode) Start() (string, error) {
 		return "", err
 	}
 
-	log.Println("Server started on ", listener.Addr())
+	n.log.Println("Server started on ", listener.Addr())
 
 	//signal application
 	n.App.SignalChannel() <- struct{}{}
@@ -187,6 +189,8 @@ func (n *GossipNode) AddPeer(remote *RemoteNode) error {
 		return err
 	}
 
+	remote.setLogger(n.log)
+
 	n.addPeer(remote)
 	return nil
 }
@@ -198,7 +202,7 @@ func (n *GossipNode) acceptConnectionRequest(request ConnectionRequest) error {
 		return err
 	}
 
-	log.Printf("New peer connection request accepted from %s \n", request.SenderAddress)
+	n.log.Printf("New peer connection request accepted from %s \n", request.SenderAddress)
 	n.addPeer(rm)
 
 	return nil
@@ -215,11 +219,11 @@ func (n *GossipNode) addPeer(peer *RemoteNode) {
 
 	previousConnection, isAvailable := n.peerMap[address]
 	if isAvailable == true {
-		log.Printf("Closing the previous connection to %s\n", address)
+		n.log.Printf("Closing the previous connection to %s\n", address)
 		previousConnection.Close()
 	}
 	n.peerMap[address] = peer
-	log.Printf("New peer added to peer map %s\n", address)
+	n.log.Printf("New peer added to peer map %s\n", address)
 }
 
 func (n *GossipNode) simpleErrorHandler(nodeAddress string, err error) {
@@ -227,12 +231,12 @@ func (n *GossipNode) simpleErrorHandler(nodeAddress string, err error) {
 	n.peerMutex.Lock()
 	defer n.peerMutex.Unlock()
 
-	log.Printf("Error occured during sending message to node %s.\n", err)
-	log.Printf("Connection to %s is shut down.\n", nodeAddress)
+	n.log.Printf("Error occured during sending message to node %s.\n", err)
+	n.log.Printf("Connection to %s is shut down.\n", nodeAddress)
 
 	previousConnection, isAvailable := n.peerMap[nodeAddress]
 	if isAvailable == true {
-		log.Printf("Closing connection to %s because of a send error\n", nodeAddress)
+		n.log.Printf("Closing connection to %s because of a send error\n", nodeAddress)
 		previousConnection.Close()
 		delete(n.peerMap, nodeAddress)
 	}

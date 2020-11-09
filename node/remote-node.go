@@ -17,6 +17,7 @@ type RemoteNode struct {
 	wg                 sync.WaitGroup
 	done               chan struct{}
 	errorHandler       func(string, error)
+	log                *log.Logger
 }
 
 // NewRemoteNode creates a remote node
@@ -93,7 +94,7 @@ func (rn *RemoteNode) mainLoop() {
 		select {
 		case m := <-rn.waitingMessageChan:
 
-			log.Printf("[RemoteNode-%s]Sending message %s \n", rn.address, m.Base64EncodedHash())
+			//rn.log.Printf("[RemoteNode-%s]Sending message %s \n", rn.address, m.Base64EncodedHash())
 			var response Response
 			err := rn.client.Call("GossipNode.Send", m, &response)
 			if err != nil {
@@ -101,16 +102,20 @@ func (rn *RemoteNode) mainLoop() {
 				if rn.errorHandler != nil {
 					rn.errorHandler(rn.address, err)
 				} else {
-					log.Printf("An error occured during sending message to node %s %s \n", rn.address, err)
+					rn.log.Printf("An error occured during sending message to node %s %s \n", rn.address, err)
 				}
 
 			}
 
 		case <-rn.done:
-			log.Printf("Connection to remote node %s  is closed \n", rn.address)
+			rn.log.Printf("Connection to remote node %s  is closed \n", rn.address)
 			rn.wg.Done()
 			return
 		}
 
 	}
+}
+
+func (rn *RemoteNode) setLogger(logger *log.Logger) {
+	rn.log = logger
 }
