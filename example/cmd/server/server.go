@@ -33,7 +33,7 @@ func main() {
 	nodeLogger := log.New(os.Stderr, "[node] ", flags)
 
 	app := application.NewSimpleApp(1)
-	n := node.NewGossipNode(app, nodeLogger)
+	n := node.NewGossipNode(app, 100, nodeLogger)
 	app.Start()
 	address, err := n.Start()
 	if err != nil {

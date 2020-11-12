@@ -4,20 +4,13 @@ import (
 	"log"
 	"net"
 	"net/rpc"
-	"os"
 	"sync"
 )
-
-// Constants
-// TODO: write a parameters struct to accept the constants from the developer
-const numberOfBroadcastThread = 5
-const maxProcessedMessageMemorySize = 100
 
 //GossipNode keeps state of a gossip node
 type GossipNode struct {
 	App                Application
 	peerMap            map[string]*RemoteNode
-	broadcastChan      chan Message
 	wg                 sync.WaitGroup
 	address            string
 	peerMutex          *sync.Mutex
@@ -25,16 +18,14 @@ type GossipNode struct {
 	log                *log.Logger
 }
 
-// NewGossipNode creates a GossipNode
-func NewGossipNode(app Application, logger *log.Logger) *GossipNode {
+// NewGossipNode creates a GossipNode, message buffer size is forward channel buffer size
+func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *GossipNode {
 	node := new(GossipNode)
 	node.App = app
 	node.peerMap = make(map[string]*RemoteNode)
-	node.broadcastChan = make(chan Message, numberOfBroadcastThread)
 	node.wg = sync.WaitGroup{}
 	node.peerMutex = &sync.Mutex{}
-	// TODO: get the size of the channel as parameter
-	node.forwardMessageChan = make(chan Message, 10)
+	node.forwardMessageChan = make(chan Message, messageBufferSize)
 	node.log = logger
 
 	return node
@@ -125,9 +116,9 @@ func (n *GossipNode) listenAndServeLoop(listener *net.TCPListener) {
 				continue
 			} else {
 				// do something with bad errors
-				n.log.Printf("Connection error: %v", err)
+				log.Printf("GossipNode Connection error: %v", err)
 				// end server process, unsucessfully
-				os.Exit(1)
+				panic(netErr)
 			}
 		} else {
 
