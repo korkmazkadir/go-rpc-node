@@ -65,9 +65,9 @@ func (rn *RemoteNode) Connect(nodeAddress string) error {
 // Close closes the remote connection to peer.
 func (rn *RemoteNode) Close() {
 	if rn.client != nil {
+		rn.done <- struct{}{}
 		rn.client.Close()
 		rn.client = nil
-		rn.done <- struct{}{}
 	}
 }
 
@@ -96,6 +96,12 @@ func (rn *RemoteNode) mainLoop() {
 	for {
 
 		select {
+
+		case <-rn.done:
+			log.Printf("Connection to remote node %s  is closed \n", rn.address)
+			rn.wg.Done()
+			return
+
 		case m := <-rn.waitingMessageChan:
 
 			//rn.log.Printf("[RemoteNode-%s]Sending message %s \n", rn.address, m.Base64EncodedHash())
@@ -111,10 +117,6 @@ func (rn *RemoteNode) mainLoop() {
 
 			}
 
-		case <-rn.done:
-			log.Printf("Connection to remote node %s  is closed \n", rn.address)
-			rn.wg.Done()
-			return
 		}
 
 	}
