@@ -111,6 +111,9 @@ func (rn *RemoteNode) mainLoop() {
 
 				if rn.errorHandler != nil {
 					rn.errorHandler(rn.address, err)
+					//TODO: breaks the loop,
+					//simple error handler could try to reconnect. !!How to handle this case!!!!
+					return
 				} else {
 					log.Printf("An error occured during sending message to node %s %s \n", rn.address, err)
 				}
