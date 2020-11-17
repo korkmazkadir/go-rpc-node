@@ -40,12 +40,17 @@ func (pc *PayloadCodec) DecodeFromByte(data []byte, o interface{}) {
 	defer pc.mutex.Unlock()
 	pc.buffer.Reset()
 
-	pc.buffer.Write(data)
-	dec := gob.NewDecoder(pc.buffer)
-	err := dec.Decode(o)
+	_, err := pc.buffer.Write(data)
 	if err != nil {
 		panic(err)
 	}
+
+	dec := gob.NewDecoder(pc.buffer)
+	err = dec.Decode(o)
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 // EncodeToByte gets an object and returns bytes
