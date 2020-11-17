@@ -8,13 +8,18 @@ import (
 
 // PayloadCodec implements a payload codec which uses same buffer
 type PayloadCodec struct {
-	buffer bytes.Buffer
-	mutex  *sync.Mutex
+	buffer  *bytes.Buffer
+	encoder *gob.Encoder
+	decoder *gob.Decoder
+	mutex   *sync.Mutex
 }
 
 // NewPayloadCodec creates a new PayloadCodec and initilizes it
 func NewPayloadCodec() *PayloadCodec {
 	codec := new(PayloadCodec)
+	codec.buffer = new(bytes.Buffer)
+	codec.encoder = gob.NewEncoder(codec.buffer)
+	codec.decoder = gob.NewDecoder(codec.buffer)
 	codec.mutex = &sync.Mutex{}
 	return codec
 }
@@ -25,8 +30,7 @@ func (pc *PayloadCodec) EncodeToByte(o interface{}) []byte {
 	defer pc.mutex.Unlock()
 	pc.buffer.Reset()
 
-	enc := gob.NewEncoder(&pc.buffer)
-	err := enc.Encode(o)
+	err := pc.encoder.Encode(o)
 	if err != nil {
 		panic(err)
 	}
@@ -44,8 +48,7 @@ func (pc *PayloadCodec) DecodeFromByte(data []byte, o interface{}) {
 		panic(err)
 	}
 
-	dec := gob.NewDecoder(&pc.buffer)
-	err = dec.Decode(o)
+	err = pc.decoder.Decode(o)
 	if err != nil {
 		panic(err)
 	}
