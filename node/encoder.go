@@ -3,57 +3,7 @@ package node
 import (
 	"bytes"
 	"encoding/gob"
-	"sync"
 )
-
-// PayloadCodec implements a payload codec which uses same buffer
-type PayloadCodec struct {
-	buffer  *bytes.Buffer
-	encoder *gob.Encoder
-	decoder *gob.Decoder
-	mutex   *sync.Mutex
-}
-
-// NewPayloadCodec creates a new PayloadCodec and initilizes it
-func NewPayloadCodec() *PayloadCodec {
-	codec := new(PayloadCodec)
-	codec.buffer = new(bytes.Buffer)
-	codec.encoder = gob.NewEncoder(codec.buffer)
-	codec.decoder = gob.NewDecoder(codec.buffer)
-	codec.mutex = &sync.Mutex{}
-	return codec
-}
-
-// EncodeToByte encodes object to byte
-func (pc *PayloadCodec) EncodeToByte(o interface{}) []byte {
-	pc.mutex.Lock()
-	defer pc.mutex.Unlock()
-	pc.buffer.Reset()
-
-	err := pc.encoder.Encode(o)
-	if err != nil {
-		panic(err)
-	}
-	return pc.buffer.Bytes()
-}
-
-// DecodeFromByte decodes bytes to object
-func (pc *PayloadCodec) DecodeFromByte(data []byte, o interface{}) {
-	pc.mutex.Lock()
-	defer pc.mutex.Unlock()
-	pc.buffer.Reset()
-
-	_, err := pc.buffer.Write(data)
-	if err != nil {
-		panic(err)
-	}
-
-	err = pc.decoder.Decode(o)
-	if err != nil {
-		panic(err)
-	}
-
-}
 
 // EncodeToByte gets an object and returns bytes
 func EncodeToByte(o interface{}) []byte {
