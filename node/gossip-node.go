@@ -123,7 +123,9 @@ func (n *GossipNode) listenAndServeLoop(listener *net.TCPListener) {
 		} else {
 
 			// using a goroutine (to handle more than one connection at a time)
-			go rpc.ServeConn(conn)
+			//go rpc.ServeConn(conn)
+			//TODO: use single thread to serve
+			rpc.ServeConn(conn)
 		}
 
 	}
