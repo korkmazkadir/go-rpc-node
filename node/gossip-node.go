@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/rpc"
@@ -132,13 +133,13 @@ func (n *GossipNode) listenAndServeLoop(listener *net.TCPListener) {
 
 // Start run threads and signals the application. It blocks
 // it returns the address of the node
-func (n *GossipNode) Start() (string, error) {
+func (n *GossipNode) Start(hostname string) (string, error) {
 
 	//Registrers only send method
 	rpc.Register(n)
 
 	// create tcp address
-	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0", hostname))
 	if err != nil {
 		return "", err
 	}
