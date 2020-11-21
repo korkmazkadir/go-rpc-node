@@ -57,11 +57,9 @@ func (rn *RemoteNode) Connect(nodeAddress string) error {
 	}
 
 	var response Response
-	//err := rn.client.Call("GossipNode.Send", m, &response)
-	rn.client.Go("GossipNode.Send", m, &response, nil)
+	err := rn.client.Call("GossipNode.Send", m, &response)
 
-	//return err
-	return nil
+	return err
 }
 
 // Close closes the remote connection to peer.
