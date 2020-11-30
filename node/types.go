@@ -24,6 +24,9 @@ type Message struct {
 	// Forward is a callback to forward message accordıng to decision of the application
 	Forward func()
 
+	//Reply replies the message with a given message
+	Reply func(*Message)
+
 	// Layer defines the layer of message
 	Layer messageLayer
 	// Payload keeps the encoded message content

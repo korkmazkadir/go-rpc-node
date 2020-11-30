@@ -53,6 +53,16 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 			n.forwardMessageChan <- *message
 		}
 
+		// Upper layers can call Reply function to reply the sender with a specific message
+		message.Reply = func(reply *Message) {
+			// Is this correct?
+			peerToReply := n.peerMap[message.Sender]
+			err := peerToReply.Send(*message)
+			if err != nil {
+				panic(err)
+			}
+		}
+
 		n.App.HandleMessage(*message)
 		return nil
 	}
