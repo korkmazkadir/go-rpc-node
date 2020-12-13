@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/rpc"
 	"sync"
-	"time"
 )
 
 const numberOfWaitingMessages = 100
@@ -105,27 +104,37 @@ func (rn *RemoteNode) mainLoop() {
 
 		case m := <-rn.waitingMessageChan:
 
-			startTime := time.Now()
+			//startTime := time.Now()
 
 			//rn.log.Printf("[RemoteNode-%s]Sending message %s \n", rn.address, m.Base64EncodedHash())
 			var response Response
-			err := rn.client.Call("GossipNode.Send", m, &response)
-			if err != nil {
+			//err := rn.client.Call("GossipNode.Send", m, &response)
 
-				if rn.errorHandler != nil {
-					rn.errorHandler(rn.address, err)
-					//TODO: breaks the loop,
-					//simple error handler could try to reconnect. !!How to handle this case!!!!
-					return
-				} else {
-					log.Printf("An error occured during sending message to node %s %s \n", rn.address, err)
-				}
+			// sends messages concurrently
+			call := rn.client.Go("GossipNode.Send", m, &response, nil)
+			go rn.checkResultOfAsycCall(call)
 
-			}
-
-			log.Printf("[%s] Elapsed time to send a message with %d bytes is %d \n", rn.address, len(m.Payload), time.Since(startTime).Microseconds())
+			//log.Printf("[%s] Elapsed time to send a message with %d bytes is %d \n", rn.address, len(m.Payload), time.Since(startTime).Microseconds())
 
 		}
+
+	}
+}
+
+func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call) {
+
+	res := <-call.Done
+
+	if res.Error != nil {
+
+		if rn.errorHandler != nil {
+			rn.errorHandler(rn.address, res.Error)
+			//TODO: breaks the loop,
+			//simple error handler could try to reconnect. !!How to handle this case!!!!
+			return
+		}
+
+		log.Printf("An error occured during sending message to node %s %s \n", rn.address, res.Error)
 
 	}
 }
