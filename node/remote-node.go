@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/rpc"
 	"sync"
+	"time"
 )
 
 const numberOfWaitingMessages = 100
@@ -104,6 +105,8 @@ func (rn *RemoteNode) mainLoop() {
 
 		case m := <-rn.waitingMessageChan:
 
+			startTime := time.Now()
+
 			//rn.log.Printf("[RemoteNode-%s]Sending message %s \n", rn.address, m.Base64EncodedHash())
 			var response Response
 			err := rn.client.Call("GossipNode.Send", m, &response)
@@ -119,6 +122,8 @@ func (rn *RemoteNode) mainLoop() {
 				}
 
 			}
+
+			log.Printf("[%s] Elapsed time to send a message with %d bytes is %d \n", rn.address, len(m.Payload), time.Since(startTime).Microseconds())
 
 		}
 
