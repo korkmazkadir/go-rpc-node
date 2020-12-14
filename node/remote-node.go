@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/rpc"
 	"sync"
+	"time"
 )
 
 const numberOfWaitingMessages = 100
@@ -110,9 +111,14 @@ func (rn *RemoteNode) mainLoop() {
 			var response Response
 			//err := rn.client.Call("GossipNode.Send", m, &response)
 
+			var startTime time.Time
+			if len(m.Payload) > 1000 {
+				startTime = time.Now()
+			}
+
 			// sends messages concurrently
 			call := rn.client.Go("GossipNode.Send", m, &response, nil)
-			go rn.checkResultOfAsycCall(call)
+			go rn.checkResultOfAsycCall(call, &startTime)
 
 			//log.Printf("[%s] Elapsed time to send a message with %d bytes is %d \n", rn.address, len(m.Payload), time.Since(startTime).Microseconds())
 
@@ -121,7 +127,7 @@ func (rn *RemoteNode) mainLoop() {
 	}
 }
 
-func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call) {
+func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime *time.Time) {
 
 	res := <-call.Done
 
@@ -137,6 +143,13 @@ func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call) {
 		log.Printf("An error occured during sending message to node %s %s \n", rn.address, res.Error)
 
 	}
+
+	if startTime != nil {
+		elapsedTime := time.Since(*startTime).Milliseconds()
+		m := res.Args.(Message)
+		log.Printf("[%s] Message sended in %d ms. Length of the payload is %d \n", rn.address, elapsedTime, len(m.Payload))
+	}
+
 }
 
 func (rn *RemoteNode) setLogger(logger *log.Logger) {
