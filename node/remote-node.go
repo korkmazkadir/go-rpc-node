@@ -111,14 +111,15 @@ func (rn *RemoteNode) mainLoop() {
 			var response Response
 			//err := rn.client.Call("GossipNode.Send", m, &response)
 
-			var startTime *time.Time
-			if len(m.Payload) > 1000 {
-				*startTime = time.Now()
-			}
-
 			// sends messages concurrently
 			call := rn.client.Go("GossipNode.Send", m, &response, nil)
-			go rn.checkResultOfAsycCall(call, startTime)
+
+			if len(m.Payload) < 1000 {
+				go rn.checkResultOfAsycCall(call, nil)
+			} else {
+				startTime := time.Now()
+				go rn.checkResultOfAsycCall(call, &startTime)
+			}
 
 			//log.Printf("[%s] Elapsed time to send a message with %d bytes is %d \n", rn.address, len(m.Payload), time.Since(startTime).Microseconds())
 
