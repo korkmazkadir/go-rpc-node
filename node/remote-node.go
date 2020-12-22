@@ -112,12 +112,12 @@ func (rn *RemoteNode) mainLoop() {
 			//err := rn.client.Call("GossipNode.Send", m, &response)
 
 			// sends messages concurrently
+			startTime := time.Now()
 			call := rn.client.Go("GossipNode.Send", m, &response, nil)
 
 			if len(m.Payload) < 1000 {
 				go rn.checkResultOfAsycCall(call, nil)
 			} else {
-				startTime := time.Now()
 				go rn.checkResultOfAsycCall(call, &startTime)
 			}
 
@@ -134,14 +134,14 @@ func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime *time.Time
 
 	if res.Error != nil {
 
+		log.Printf("An error occured during sending message to node %s %s \n", rn.address, res.Error)
+
 		if rn.errorHandler != nil {
 			rn.errorHandler(rn.address, res.Error)
 			//TODO: breaks the loop,
 			//simple error handler could try to reconnect. !!How to handle this case!!!!
 			return
 		}
-
-		log.Printf("An error occured during sending message to node %s %s \n", rn.address, res.Error)
 
 	}
 
