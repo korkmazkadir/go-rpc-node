@@ -6,7 +6,12 @@ import (
 	"net"
 	"net/rpc"
 	"sync"
+
+	"github.com/korkmazkadir/go-rpc-node/filter"
 )
+
+const inventoryReadyTag = "INV"
+const inventoryRequestTag = "INVR"
 
 //GossipNode keeps state of a gossip node
 type GossipNode struct {
@@ -16,7 +21,13 @@ type GossipNode struct {
 	address            string
 	peerMutex          *sync.Mutex
 	forwardMessageChan chan Message
-	log                *log.Logger
+
+	incommingMessageFilter *filter.UniqueMessageFilter
+
+	// messageInventory is not thread safe use with care
+	messageInventory *messageInventory
+
+	log *log.Logger
 }
 
 // NewGossipNode creates a GossipNode, message buffer size is forward channel buffer size
@@ -28,6 +39,11 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 	node.peerMutex = &sync.Mutex{}
 	node.forwardMessageChan = make(chan Message, messageBufferSize)
 	node.log = logger
+
+	// 2 minutes TTL seems reasonable for me
+	// I should get this as a parameter
+	node.incommingMessageFilter = filter.NewUniqueMessageFilter(120)
+	node.messageInventory = newMessageInventory(120)
 
 	return node
 }
@@ -42,6 +58,33 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 			DecodeFromByte(message.Payload, &cr)
 			n.log.Printf("New connection request %+v", cr)
 			return n.acceptConnectionRequest(cr)
+		} else if message.Tag == inventoryReadyTag {
+
+			added := n.incommingMessageFilter.IfNotContainsAdd(string(message.Payload))
+			if added == true {
+
+				inventoryRequestMessage := n.createInventoryReadyMessage(message)
+
+				n.peerMutex.Lock()
+				defer n.peerMutex.Unlock()
+
+				peer := n.peerMap[message.Sender]
+				return peer.Send(inventoryRequestMessage)
+			}
+
+		} else if message.Tag == inventoryRequestTag {
+
+			n.peerMutex.Lock()
+			defer n.peerMutex.Unlock()
+
+			requestedMessageHash := string(message.Payload)
+			requestedMessage := n.messageInventory.Get(requestedMessageHash)
+			if requestedMessage == nil {
+				panic(fmt.Errorf("requested message %s not available in the message inventory. Possibly a timing assumption violated", requestedMessageHash))
+			}
+
+			peer := n.peerMap[message.Sender]
+			return peer.Send(requestedMessage)
 		}
 
 		n.log.Printf("Unknown message tag for NETWORK layer message: %s \n", message.Tag)
@@ -57,7 +100,7 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 		message.Reply = func(reply *Message) {
 			// Is this correct?
 			peerToReply := n.peerMap[message.Sender]
-			err := peerToReply.Send(*message)
+			err := peerToReply.Send(message)
 			if err != nil {
 				panic(err)
 			}
@@ -101,13 +144,17 @@ func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 	n.peerMutex.Lock()
 	defer n.peerMutex.Unlock()
 
+	n.messageInventory.Add(&message)
+	inventoryMessage := n.createInventoryReadyMessage(&message)
+
 	for address, peer := range n.peerMap {
 
 		if address == exceptNodeAddress {
 			continue
 		}
 
-		err := peer.Send(message)
+		// it is sending an inventory message not the actual message
+		err := peer.Send(inventoryMessage)
 		if err != nil {
 			n.log.Printf("Error occured during sending a message to peer %s. Error: %s\n", address, err)
 		}
@@ -243,4 +290,25 @@ func (n *GossipNode) simpleErrorHandler(nodeAddress string, err error) {
 		delete(n.peerMap, nodeAddress)
 	}
 
+}
+
+func (n *GossipNode) createInventoryReadyMessage(message *Message) *Message {
+	inventoryMessage := new(Message)
+	inventoryMessage.Sender = n.address
+	inventoryMessage.Tag = inventoryReadyTag
+	inventoryMessage.Layer = network
+	inventoryMessage.Payload = message.hash()
+
+	return inventoryMessage
+}
+
+func (n *GossipNode) createInventoryRequestMessage(message *Message) *Message {
+	inventoryMessage := new(Message)
+	inventoryMessage.Sender = n.address
+	inventoryMessage.Tag = inventoryRequestTag
+	inventoryMessage.Layer = network
+	//inventory message contains only hash of a message as a payload
+	inventoryMessage.Payload = message.Payload
+
+	return inventoryMessage
 }

@@ -13,7 +13,7 @@ const numberOfWaitingMessages = 100
 type RemoteNode struct {
 	address            string
 	client             *rpc.Client
-	waitingMessageChan chan Message
+	waitingMessageChan chan *Message
 	wg                 sync.WaitGroup
 	done               chan struct{}
 	errorHandler       func(string, error)
@@ -32,7 +32,7 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	rn := new(RemoteNode)
 	rn.client = client
 	rn.address = address
-	rn.waitingMessageChan = make(chan Message, numberOfWaitingMessages)
+	rn.waitingMessageChan = make(chan *Message, numberOfWaitingMessages)
 	rn.wg = sync.WaitGroup{}
 	rn.done = make(chan struct{}, 1)
 
@@ -79,7 +79,7 @@ func (rn *RemoteNode) attachErrorHandler(handler func(string, error)) {
 
 // Send enques a message to send to specific peer
 //TODO: How to handle errors
-func (rn *RemoteNode) Send(message Message) error {
+func (rn *RemoteNode) Send(message *Message) error {
 	/*
 		select {
 		case rn.waitingMessageChan <- message:
