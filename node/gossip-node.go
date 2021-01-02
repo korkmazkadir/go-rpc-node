@@ -62,7 +62,7 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 
 			added := n.incommingMessageFilter.IfNotContainsAdd(string(message.Payload))
 			if added == true {
-
+				n.log.Println("inventory ready message")
 				inventoryRequestMessage := n.createInventoryReadyMessage(message)
 
 				n.peerMutex.Lock()
@@ -77,6 +77,7 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 			n.peerMutex.Lock()
 			defer n.peerMutex.Unlock()
 
+			n.log.Println("inventory request message")
 			requestedMessageHash := string(message.Payload)
 			requestedMessage := n.messageInventory.Get(requestedMessageHash)
 			if requestedMessage == nil {
