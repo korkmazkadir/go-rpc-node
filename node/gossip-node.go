@@ -69,8 +69,10 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 				defer n.peerMutex.Unlock()
 
 				peer := n.peerMap[message.Sender]
-				return peer.Send(inventoryRequestMessage)
+				peer.Send(inventoryRequestMessage)
 			}
+
+			return nil
 
 		} else if message.Tag == inventoryRequestTag {
 
@@ -85,10 +87,12 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 			}
 
 			peer := n.peerMap[message.Sender]
-			return peer.Send(requestedMessage)
+			peer.Send(requestedMessage)
+
+			return nil
 		}
 
-		n.log.Printf("Unknown message tag for NETWORK layer message: %s \n", message.Tag)
+		n.log.Printf("Unknown message tag for NETWORK layer message tag: %s \n", message.Tag)
 		return nil
 	} else if message.Layer == application {
 

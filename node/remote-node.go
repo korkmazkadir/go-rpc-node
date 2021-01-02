@@ -113,7 +113,7 @@ func (rn *RemoteNode) mainLoop() {
 
 			// sends messages concurrently
 			startTime := time.Now()
-			call := rn.client.Go("GossipNode.Send", m, &response, nil)
+			call := rn.client.Go("GossipNode.Send", *m, &response, nil)
 
 			if len(m.Payload) < 1000 {
 				go rn.checkResultOfAsycCall(call, nil)
