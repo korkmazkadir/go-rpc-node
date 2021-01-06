@@ -45,10 +45,10 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 	node.forwardMessageChan = make(chan Message, messageBufferSize)
 	node.log = logger
 
-	// 2 minutes TTL seems reasonable for me
+	// 60 seconds TTL seems reasonable for me
 	// I should get this as a parameter
-	node.incommingMessageFilter = filter.NewUniqueMessageFilter(120)
-	node.messageInventory = newMessageInventory(120)
+	node.incommingMessageFilter = filter.NewUniqueMessageFilter(60)
+	node.messageInventory = newMessageInventory(60)
 
 	return node
 }

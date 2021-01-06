@@ -119,21 +119,14 @@ func (rn *RemoteNode) mainLoop() {
 			// sends messages concurrently
 			startTime := time.Now()
 			call := rn.client.Go("GossipNode.Send", *m, &response, nil)
-
-			if len(m.Payload) < printSendElapsedTimeLimit {
-				go rn.checkResultOfAsycCall(call, nil)
-			} else {
-				go rn.checkResultOfAsycCall(call, &startTime)
-			}
-
-			//log.Printf("[%s] Elapsed time to send a message with %d bytes is %d \n", rn.address, len(m.Payload), time.Since(startTime).Microseconds())
+			go rn.checkResultOfAsycCall(call, startTime)
 
 		}
 
 	}
 }
 
-func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime *time.Time) {
+func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime time.Time) {
 
 	res := <-call.Done
 
@@ -150,9 +143,9 @@ func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime *time.Time
 
 	}
 
-	if startTime != nil {
-		elapsedTime := time.Since(*startTime).Milliseconds()
-		m := res.Args.(Message)
+	m := res.Args.(Message)
+	if len(m.Payload) > printSendElapsedTimeLimit {
+		elapsedTime := time.Since(startTime).Milliseconds()
 		log.Printf("[%s] Message sended in %d ms. Length of the payload is %d \n", rn.address, elapsedTime, len(m.Payload))
 	}
 
