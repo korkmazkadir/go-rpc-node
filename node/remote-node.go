@@ -9,6 +9,11 @@ import (
 
 const numberOfWaitingMessages = 100
 
+// if message payload length bigger than printSendElapsedTimeLimit,
+// elapsed time to send the message is logged
+// printSendElapsedTimeLimit is in bytes
+const printSendElapsedTimeLimit = 5000
+
 // RemoteNode describes remote interface of a gossip node
 type RemoteNode struct {
 	address            string
@@ -115,7 +120,7 @@ func (rn *RemoteNode) mainLoop() {
 			startTime := time.Now()
 			call := rn.client.Go("GossipNode.Send", *m, &response, nil)
 
-			if len(m.Payload) < 1000 {
+			if len(m.Payload) < printSendElapsedTimeLimit {
 				go rn.checkResultOfAsycCall(call, nil)
 			} else {
 				go rn.checkResultOfAsycCall(call, &startTime)

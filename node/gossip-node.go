@@ -13,6 +13,11 @@ import (
 const inventoryReadyTag = "INV"
 const inventoryRequestTag = "INVR"
 
+// if message payload length is smaller than inventoryMessageLimit,
+// it is sended directly. Otherwise an inv message sended
+// inventoryMessageLimit is in bytes
+const inventoryMessageLimit = 5000
+
 //GossipNode keeps state of a gossip node
 type GossipNode struct {
 	App                Application
@@ -146,11 +151,22 @@ func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 		n.log.Printf("Forwards the message %s except %s \n", message.Base64EncodedHash(), exceptNodeAddress)
 	}
 
+	if len(message.Payload) > inventoryMessageLimit {
+		// if the length of the nessage payload is bigger than the inventoryMessageLimit
+		// an inventory message sended to peers
+		n.messageInventory.Add(&message)
+		inventoryMessage := n.createInventoryReadyMessage(&message)
+		n.sendExceptAllPeers(inventoryMessage, exceptNodeAddress)
+	} else {
+		// The message sended directly
+		n.sendExceptAllPeers(&message, exceptNodeAddress)
+	}
+
+}
+
+func (n *GossipNode) sendExceptAllPeers(message *Message, exceptNodeAddress string) {
 	n.peerMutex.Lock()
 	defer n.peerMutex.Unlock()
-
-	n.messageInventory.Add(&message)
-	inventoryMessage := n.createInventoryReadyMessage(&message)
 
 	for address, peer := range n.peerMap {
 
@@ -159,7 +175,7 @@ func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 		}
 
 		// it is sending an inventory message not the actual message
-		err := peer.Send(inventoryMessage)
+		err := peer.Send(message)
 		if err != nil {
 			n.log.Printf("Error occured during sending a message to peer %s. Error: %s\n", address, err)
 		}
