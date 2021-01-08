@@ -44,7 +44,13 @@ func (m *messageInventory) Add(message *Message) bool {
 }
 
 func (m *messageInventory) Get(messageHash string) *Message {
-	return m.availableItems[messageHash].message
+
+	inventoryItem := m.availableItems[messageHash]
+	if inventoryItem == nil {
+		return nil
+	}
+
+	return inventoryItem.message
 }
 
 func (m *messageInventory) clear(currentTime int64) {

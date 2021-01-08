@@ -67,7 +67,7 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 
 			added := n.incommingMessageFilter.IfNotContainsAdd(string(message.Payload))
 			if added == true {
-				n.log.Println("inventory ready message")
+				n.log.Printf("inventory ready message from %s\n", message.Sender)
 				inventoryRequestMessage := n.createInventoryRequestMessage(message)
 
 				n.peerMutex.Lock()
@@ -81,15 +81,15 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 
 		} else if message.Tag == inventoryRequestTag {
 
-			n.peerMutex.Lock()
-			defer n.peerMutex.Unlock()
-
-			n.log.Println("inventory request message")
+			n.log.Printf("inventory request message from %s\n", message.Sender)
 			requestedMessageHash := string(message.Payload)
 			requestedMessage := n.messageInventory.Get(requestedMessageHash)
 			if requestedMessage == nil {
 				panic(fmt.Errorf("requested message %s not available in the message inventory. Possibly a timing assumption violated", requestedMessageHash))
 			}
+
+			n.peerMutex.Lock()
+			defer n.peerMutex.Unlock()
 
 			peer := n.peerMap[message.Sender]
 			peer.Send(requestedMessage)
