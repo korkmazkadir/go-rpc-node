@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-const folder = "message-inventory"
+const folder = "output/message-inventory"
 
 // FileBackedMessageInventory defines a message inventory
 type FileBackedMessageInventory struct {
