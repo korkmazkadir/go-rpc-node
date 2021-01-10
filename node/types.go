@@ -23,10 +23,10 @@ type Message struct {
 	// Tag defines the type of a message. It is used to convert byte array to an object on the receiver side.
 	Tag string
 	// Forward is a callback to forward message accordıng to decision of the application
-	Forward func()
+	Forward func() `json:"-"`
 
 	//Reply replies the message with a given message
-	Reply func(*Message)
+	Reply func(*Message) `json:"-"`
 
 	// Layer defines the layer of message
 	Layer messageLayer
