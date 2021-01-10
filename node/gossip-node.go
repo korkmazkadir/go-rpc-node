@@ -1,6 +1,7 @@
 package node
 
 import (
+	"encoding/base32"
 	"fmt"
 	"log"
 	"net"
@@ -30,7 +31,7 @@ type GossipNode struct {
 	incommingMessageFilter *filter.UniqueMessageFilter
 
 	// messageInventory is not thread safe use with care
-	messageInventory *messageInventory
+	messageInventory FileBackedMessageInventory
 
 	log *log.Logger
 }
@@ -48,7 +49,7 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 	// 60 seconds TTL seems reasonable for me
 	// I should get this as a parameter
 	node.incommingMessageFilter = filter.NewUniqueMessageFilter(120)
-	node.messageInventory = newMessageInventory(120)
+	node.messageInventory = NewFileBackedMessageInventory()
 
 	return node
 }
@@ -82,10 +83,10 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 		} else if message.Tag == inventoryRequestTag {
 
 			n.log.Printf("inventory request message from %s\n", message.Sender)
-			requestedMessageHash := string(message.Payload)
-			requestedMessage := n.messageInventory.Get(requestedMessageHash)
-			if requestedMessage == nil {
-				panic(fmt.Errorf("requested message %s not available in the message inventory. Possibly a timing assumption violated", requestedMessageHash))
+			requestedMessageHash := message.Payload
+			requestedMessage, err := n.messageInventory.Get(base32.StdEncoding.EncodeToString(requestedMessageHash))
+			if err != nil {
+				panic(fmt.Errorf("An error occured while getting message from the inventory: %s", err))
 			}
 
 			n.peerMutex.Lock()
@@ -154,7 +155,7 @@ func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 	if len(message.Payload) > inventoryMessageLimit {
 		// if the length of the nessage payload is bigger than the inventoryMessageLimit
 		// an inventory message sended to peers
-		n.messageInventory.Add(&message)
+		n.messageInventory.Put(&message)
 		inventoryMessage := n.createInventoryReadyMessage(&message)
 		n.sendExceptAllPeers(inventoryMessage, exceptNodeAddress)
 	} else {

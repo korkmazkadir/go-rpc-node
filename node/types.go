@@ -2,6 +2,7 @@ package node
 
 import (
 	"crypto/sha256"
+	"encoding/base32"
 	"encoding/base64"
 )
 
@@ -49,9 +50,13 @@ func (m Message) Hash() string {
 }
 
 // Base64EncodedHash returns base64 encoded digest of the message payload
-// TODO: this is called in may place and each time it is computed
 func (m Message) Base64EncodedHash() string {
 	return base64.StdEncoding.EncodeToString(m.hash())
+}
+
+// Base32EncodedHash returns base32 encoded digest of the message payload
+func (m Message) Base32EncodedHash() string {
+	return base32.StdEncoding.EncodeToString(m.hash())
 }
 
 func (m Message) hash() []byte {
