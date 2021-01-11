@@ -23,6 +23,7 @@ type RemoteNode struct {
 	done               chan struct{}
 	errorHandler       func(string, error)
 	log                *log.Logger
+	err                error
 }
 
 // NewRemoteNode creates a remote node
@@ -40,6 +41,7 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	rn.waitingMessageChan = make(chan *Message, numberOfWaitingMessages)
 	rn.wg = sync.WaitGroup{}
 	rn.done = make(chan struct{}, 1)
+	rn.err = nil
 
 	// Starts a thread to send messages
 	// There is only a single thread for a each peer
@@ -73,27 +75,15 @@ func (rn *RemoteNode) Close() {
 	if rn.client != nil {
 		rn.done <- struct{}{}
 		rn.client.Close()
-		rn.client = nil
 	}
 }
 
-// AttachErrorHandler attaches an error handler to handle rpc method call errors
-func (rn *RemoteNode) attachErrorHandler(handler func(string, error)) {
-	rn.errorHandler = handler
-}
-
 // Send enques a message to send to specific peer
-//TODO: How to handle errors
 func (rn *RemoteNode) Send(message *Message) error {
-	/*
-		select {
-		case rn.waitingMessageChan <- message:
-			return nil
-		default:
-			return errors.New(MessageQueuFullError)
-		}
-	*/
-	// my be it should block
+	if rn.err != nil {
+		return rn.err
+	}
+
 	rn.waitingMessageChan <- message
 	return nil
 }
@@ -110,15 +100,8 @@ func (rn *RemoteNode) mainLoop() {
 
 		case m := <-rn.waitingMessageChan:
 
-			//startTime := time.Now()
-
-			//rn.log.Printf("[RemoteNode-%s]Sending message %s \n", rn.address, m.Base64EncodedHash())
-			var response Response
-			//err := rn.client.Call("GossipNode.Send", m, &response)
-
-			// sends messages concurrently
 			startTime := time.Now()
-			call := rn.client.Go("GossipNode.Send", *m, &response, nil)
+			call := rn.client.Go("GossipNode.Send", *m, nil, nil)
 			go rn.checkResultOfAsycCall(call, startTime)
 
 		}
@@ -131,16 +114,9 @@ func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime time.Time)
 	res := <-call.Done
 
 	if res.Error != nil {
-
-		log.Printf("An error occured during sending message to node %s %s \n", rn.address, res.Error)
-
-		if rn.errorHandler != nil {
-			rn.errorHandler(rn.address, res.Error)
-			//TODO: breaks the loop,
-			//simple error handler could try to reconnect. !!How to handle this case!!!!
-			return
-		}
-
+		rn.err = res.Error
+		log.Printf("An error occured during sending message to node %s %s. This will close the connection to the remote node! \n", rn.address, res.Error)
+		rn.Close()
 	}
 
 	m := res.Args.(Message)

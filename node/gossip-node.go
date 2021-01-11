@@ -169,6 +169,8 @@ func (n *GossipNode) sendExceptAllPeers(message *Message, exceptNodeAddress stri
 	n.peerMutex.Lock()
 	defer n.peerMutex.Unlock()
 
+	var failedConnections []string
+
 	for address, peer := range n.peerMap {
 
 		if address == exceptNodeAddress {
@@ -179,8 +181,14 @@ func (n *GossipNode) sendExceptAllPeers(message *Message, exceptNodeAddress stri
 		err := peer.Send(message)
 		if err != nil {
 			n.log.Printf("Error occured during sending a message to peer %s. Error: %s\n", address, err)
+			failedConnections = append(failedConnections, address)
 		}
 
+	}
+
+	for _, failedNodeAddress := range failedConnections {
+		delete(n.peerMap, failedNodeAddress)
+		log.Printf("WARNING: Removed a failed peer(%s) from peer list. The Number of peers is %d", failedNodeAddress, len(n.peerMap))
 	}
 
 }
@@ -285,9 +293,6 @@ func (n *GossipNode) addPeer(peer *RemoteNode) {
 	n.peerMutex.Lock()
 	defer n.peerMutex.Unlock()
 
-	//Attaches to simple error handler to handle rpc errors
-	peer.attachErrorHandler(n.simpleErrorHandler)
-
 	previousConnection, isAvailable := n.peerMap[address]
 	if isAvailable == true {
 		n.log.Printf("Closing the previous connection to %s\n", address)
@@ -295,23 +300,6 @@ func (n *GossipNode) addPeer(peer *RemoteNode) {
 	}
 	n.peerMap[address] = peer
 	n.log.Printf("New peer added to peer map %s\n", address)
-}
-
-func (n *GossipNode) simpleErrorHandler(nodeAddress string, err error) {
-
-	n.peerMutex.Lock()
-	defer n.peerMutex.Unlock()
-
-	n.log.Printf("Error occured during sending message to node %s.\n", err)
-	n.log.Printf("Connection to %s is shut down.\n", nodeAddress)
-
-	previousConnection, isAvailable := n.peerMap[nodeAddress]
-	if isAvailable == true {
-		log.Printf("Closing connection to %s because of a send error %s \n", nodeAddress, err)
-		previousConnection.Close()
-		delete(n.peerMap, nodeAddress)
-	}
-
 }
 
 func (n *GossipNode) createInventoryReadyMessage(message *Message) *Message {
