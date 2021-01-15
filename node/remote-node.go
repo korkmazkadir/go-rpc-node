@@ -122,7 +122,7 @@ func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime time.Time)
 	m := res.Args.(Message)
 	if len(m.Payload) > printSendElapsedTimeLimit {
 		elapsedTime := time.Since(startTime).Milliseconds()
-		log.Printf("[%s] Message sended in %d ms. Length of the payload is %d \n", rn.address, elapsedTime, len(m.Payload))
+		log.Printf("[upload-stats]\t%s\t%d\t%d\n", rn.address, len(m.Payload), elapsedTime)
 	}
 
 }
