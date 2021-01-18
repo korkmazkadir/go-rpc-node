@@ -100,15 +100,30 @@ func (rn *RemoteNode) mainLoop() {
 
 		case m := <-rn.waitingMessageChan:
 
-			startTime := time.Now()
-			call := rn.client.Go("GossipNode.Send", *m, nil, nil)
-			go rn.checkResultOfAsycCall(call, startTime)
+			go func(message *Message) {
+
+				startTime := time.Now()
+				err := rn.client.Call("GossipNode.Send", *message, nil)
+				elapsedTime := time.Since(startTime).Milliseconds()
+
+				if err != nil {
+					rn.err = err
+					log.Printf("An error occured during sending message to node %s %s. This will close the connection to the remote node! \n", rn.address, err)
+					rn.Close()
+				}
+
+				if len(m.Payload) > printSendElapsedTimeLimit {
+					log.Printf("[upload-stat]\t%s\t%d\t%d\n", rn.address, len(message.Payload), elapsedTime)
+				}
+
+			}(m)
 
 		}
 
 	}
 }
 
+/*
 func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime time.Time) {
 
 	res := <-call.Done
@@ -130,3 +145,4 @@ func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime time.Time)
 func (rn *RemoteNode) setLogger(logger *log.Logger) {
 	rn.log = logger
 }
+*/
