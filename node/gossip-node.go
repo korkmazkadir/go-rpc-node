@@ -55,7 +55,7 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 }
 
 // Send rpc
-func (n *GossipNode) Send(message *Message, reply *Response) error {
+func (n *GossipNode) Send(message Message, reply *Response) error {
 
 	if message.Layer == network {
 
@@ -69,7 +69,7 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 			added := n.incommingMessageFilter.IfNotContainsAdd(string(message.Payload))
 			if added == true {
 				n.log.Printf("inventory ready message from %s\n", message.Sender)
-				inventoryRequestMessage := n.createInventoryRequestMessage(message)
+				inventoryRequestMessage := n.createInventoryRequestMessage(&message)
 
 				n.peerMutex.Lock()
 				defer n.peerMutex.Unlock()
@@ -104,20 +104,20 @@ func (n *GossipNode) Send(message *Message, reply *Response) error {
 
 		// Upper layers can call Forward function to forward a message excep the sender
 		message.Forward = func() {
-			n.forwardMessageChan <- *message
+			n.forwardMessageChan <- message
 		}
 
 		// Upper layers can call Reply function to reply the sender with a specific message
 		message.Reply = func(reply *Message) {
 			// Is this correct?
 			peerToReply := n.peerMap[message.Sender]
-			err := peerToReply.Send(message)
+			err := peerToReply.Send(&message)
 			if err != nil {
 				panic(err)
 			}
 		}
 
-		n.App.HandleMessage(*message)
+		n.App.HandleMessage(message)
 		return nil
 	}
 

@@ -103,7 +103,10 @@ func (rn *RemoteNode) mainLoop() {
 			go func(message *Message) {
 
 				startTime := time.Now()
-				err := rn.client.Call("GossipNode.Send", *message, nil)
+
+				response := Response{}
+
+				err := rn.client.Call("GossipNode.Send", *message, &response)
 				elapsedTime := time.Since(startTime).Milliseconds()
 
 				if err != nil {
