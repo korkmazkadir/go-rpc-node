@@ -141,8 +141,8 @@ func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime time.Time)
 	}
 
 }
+*/
 
 func (rn *RemoteNode) setLogger(logger *log.Logger) {
 	rn.log = logger
 }
-*/
