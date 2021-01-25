@@ -115,7 +115,7 @@ func (rn *RemoteNode) mainLoop() {
 					rn.Close()
 				}
 
-				if len(m.Payload) > printSendElapsedTimeLimit {
+				if len(message.Payload) > printSendElapsedTimeLimit {
 					log.Printf("[upload-stat]\t%s\t%d\t%d\n", rn.address, len(message.Payload), elapsedTime)
 				}
 
