@@ -51,7 +51,7 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	rn.wg.Add(1)
 	go rn.mainLoop()
 
-	log.Println("Remote Node Version: 0.0.3")
+	log.Println("Remote Node Version: 0.0.4")
 
 	return rn, nil
 }
