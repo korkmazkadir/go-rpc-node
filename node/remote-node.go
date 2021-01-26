@@ -48,6 +48,8 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	rn.wg.Add(1)
 	go rn.mainLoop()
 
+	log.Println("Remote Node Version: 0.0.1")
+
 	return rn, nil
 }
 
@@ -73,8 +75,12 @@ func (rn *RemoteNode) Connect(nodeAddress string) error {
 // Close closes the remote connection to peer.
 func (rn *RemoteNode) Close() {
 	if rn.client != nil {
+		// sends signal to exit from main loop
 		rn.done <- struct{}{}
+		// closes rpc client
 		rn.client.Close()
+		// closes channel
+		close(rn.waitingMessageChan)
 	}
 }
 
@@ -100,51 +106,30 @@ func (rn *RemoteNode) mainLoop() {
 
 		case m := <-rn.waitingMessageChan:
 
-			go func(message *Message) {
-
-				startTime := time.Now()
-
-				response := Response{}
-
-				err := rn.client.Call("GossipNode.Send", *message, &response)
-				elapsedTime := time.Since(startTime).Milliseconds()
-
-				if err != nil {
-					rn.err = err
-					log.Printf("An error occured during sending message to node %s %s. This will close the connection to the remote node! \n", rn.address, err)
-					rn.Close()
-				}
-
-				if len(message.Payload) > printSendElapsedTimeLimit {
-					log.Printf("[upload-stat]\t%s\t%d\t%d\n", rn.address, len(message.Payload), elapsedTime)
-				}
-
-			}(m)
+			go rn.sendMessage(m)
 
 		}
 
 	}
 }
 
-/*
-func (rn *RemoteNode) checkResultOfAsycCall(call *rpc.Call, startTime time.Time) {
+func (rn *RemoteNode) sendMessage(message *Message) {
 
-	res := <-call.Done
+	startTime := time.Now()
+	err := rn.client.Call("GossipNode.Send", *message, nil)
+	elapsedTime := time.Since(startTime).Milliseconds()
 
-	if res.Error != nil {
-		rn.err = res.Error
-		log.Printf("An error occured during sending message to node %s %s. This will close the connection to the remote node! \n", rn.address, res.Error)
+	if err != nil {
+		rn.err = err
+		log.Printf("An error occured during sending message to node %s %s. This will close the connection to the remote node! \n", rn.address, err)
 		rn.Close()
+		return
 	}
 
-	m := res.Args.(Message)
-	if len(m.Payload) > printSendElapsedTimeLimit {
-		elapsedTime := time.Since(startTime).Milliseconds()
-		log.Printf("[upload-stat]\t%s\t%d\t%d\n", rn.address, len(m.Payload), elapsedTime)
+	if len(message.Payload) > printSendElapsedTimeLimit {
+		log.Printf("[upload-stat]\t%s\t%d\t%d\t%s\n", rn.address, len(message.Payload), elapsedTime, message.Tag)
 	}
-
 }
-*/
 
 func (rn *RemoteNode) setLogger(logger *log.Logger) {
 	rn.log = logger
