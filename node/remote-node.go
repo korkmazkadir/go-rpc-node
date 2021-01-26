@@ -48,7 +48,7 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	rn.wg.Add(1)
 	go rn.mainLoop()
 
-	log.Println("Remote Node Version: 0.0.2")
+	log.Println("Remote Node Version: 0.0.3")
 
 	return rn, nil
 }
@@ -115,11 +115,11 @@ func (rn *RemoteNode) mainLoop() {
 
 func (rn *RemoteNode) sendMessage(message *Message) {
 
-	startTime := time.Now().Unix()
+	startTime := time.Now().UnixNano()
 	err := rn.client.Call("GossipNode.Send", *message, nil)
-	endTime := time.Now().Unix()
+	endTime := time.Now().UnixNano()
 
-	elapsedTime := endTime - startTime
+	elapsedTime := (endTime - startTime) / 1000000
 
 	if err != nil {
 		rn.err = err
