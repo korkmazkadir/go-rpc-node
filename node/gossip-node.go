@@ -51,6 +51,8 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 	node.incommingMessageFilter = filter.NewUniqueMessageFilter(120)
 	node.messageInventory = NewFileBackedMessageInventory()
 
+	log.Println("Remote Node Version: 0.0.5")
+
 	return node
 }
 

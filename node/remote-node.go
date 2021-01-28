@@ -47,8 +47,6 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	// There is only a single thread for a each peer
 	go rn.mainLoop()
 
-	log.Println("Remote Node Version: 0.0.4")
-
 	return rn, nil
 }
 
