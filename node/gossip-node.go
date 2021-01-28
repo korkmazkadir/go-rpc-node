@@ -244,11 +244,17 @@ func (n *GossipNode) Start(hostname string) (string, error) {
 
 	//starts threads to handle outgoing messages
 	n.wg.Add(1)
-	go n.broadcastLoop()
+	go func() {
+		defer n.wg.Done()
+		n.broadcastLoop()
+	}()
 
 	//starts a thread to relpy incomming requests
 	n.wg.Add(1)
-	go n.listenAndServeLoop(listener)
+	go func() {
+		defer n.wg.Done()
+		n.listenAndServeLoop(listener)
+	}()
 
 	//address := fmt.Sprintf("%s:%d", listener.Addr().String())
 	n.address = listener.Addr().String()

@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/rpc"
 	"os"
-	"sync"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -22,7 +21,6 @@ type RemoteNode struct {
 	address            string
 	client             *rpc.Client
 	waitingMessageChan chan *Message
-	wg                 sync.WaitGroup
 	done               chan struct{}
 	errorHandler       func(string, error)
 	log                *log.Logger
@@ -42,13 +40,11 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	rn.client = client
 	rn.address = address
 	rn.waitingMessageChan = make(chan *Message, numberOfWaitingMessages)
-	rn.wg = sync.WaitGroup{}
 	rn.done = make(chan struct{}, 1)
 	rn.err = nil
 
 	// Starts a thread to send messages
 	// There is only a single thread for a each peer
-	rn.wg.Add(1)
 	go rn.mainLoop()
 
 	log.Println("Remote Node Version: 0.0.4")
@@ -104,7 +100,6 @@ func (rn *RemoteNode) mainLoop() {
 
 		case <-rn.done:
 			log.Printf("Connection to remote node %s  is closed \n", rn.address)
-			rn.wg.Done()
 			return
 
 		case m := <-rn.waitingMessageChan:
