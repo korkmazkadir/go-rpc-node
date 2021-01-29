@@ -110,7 +110,7 @@ func (rn *RemoteNode) sendMessage(message *Message) {
 
 	startTime := time.Now()
 	err := rn.client.Call("GossipNode.Send", *message, nil)
-	elapsedTime := time.Since(startTime).Microseconds()
+	elapsedTime := time.Since(startTime).Milliseconds()
 
 	if err != nil {
 		rn.err = err
