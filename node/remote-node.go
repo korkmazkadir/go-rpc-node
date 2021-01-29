@@ -3,10 +3,7 @@ package node
 import (
 	"log"
 	"net/rpc"
-	"os"
 	"time"
-
-	"golang.org/x/sys/unix"
 )
 
 const numberOfWaitingMessages = 100
@@ -111,16 +108,9 @@ func (rn *RemoteNode) mainLoop() {
 
 func (rn *RemoteNode) sendMessage(message *Message) {
 
-	PID := os.Getpid()
-	TID := unix.Gettid()
-	PPID := unix.Getppid()
-	EUI := unix.Geteuid()
-
-	startTime := time.Now().UnixNano()
+	startTime := time.Now()
 	err := rn.client.Call("GossipNode.Send", *message, nil)
-	endTime := time.Now().UnixNano()
-
-	elapsedTime := (endTime - startTime) / 1000000
+	elapsedTime := time.Since(startTime).Microseconds()
 
 	if err != nil {
 		rn.err = err
@@ -130,7 +120,7 @@ func (rn *RemoteNode) sendMessage(message *Message) {
 	}
 
 	if len(message.Payload) > printSendElapsedTimeLimit {
-		log.Printf("[upload-stat]\t%s\t%d\t%d\t%s\t[PID=%d]\t[TID=%d]\t[PPID=%d]\t[EUI=%d]\n", rn.address, len(message.Payload), elapsedTime, message.Tag, PID, TID, PPID, EUI)
+		log.Printf("[upload-stat]\t%s\t%d\t%d\t%s\n", rn.address, len(message.Payload), elapsedTime, message.Tag)
 	}
 }
 
