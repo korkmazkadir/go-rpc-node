@@ -113,11 +113,11 @@ func (rn *RemoteNode) sendMessage(message *Message) {
 
 	PID := os.Getpid()
 	TID := unix.Gettid()
-	PPID, err := unix.Getppid()
+	PPID := unix.Getppid()
 	EUI := unix.Geteuid()
 
 	startTime := time.Now().UnixNano()
-	err = rn.client.Call("GossipNode.Send", *message, nil)
+	err := rn.client.Call("GossipNode.Send", *message, nil)
 	endTime := time.Now().UnixNano()
 
 	elapsedTime := (endTime - startTime) / 1000000
