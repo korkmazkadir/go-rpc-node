@@ -116,12 +116,6 @@ func (rn *RemoteNode) sendMessage(message *Message) {
 	PPID, err := unix.Getppid()
 	EUI := unix.Geteuid()
 
-	TGID, err := unix.Getpgid()
-	if err != nil {
-		//could not read the TGID
-		TGID = -314
-	}
-
 	startTime := time.Now().UnixNano()
 	err = rn.client.Call("GossipNode.Send", *message, nil)
 	endTime := time.Now().UnixNano()
@@ -136,7 +130,7 @@ func (rn *RemoteNode) sendMessage(message *Message) {
 	}
 
 	if len(message.Payload) > printSendElapsedTimeLimit {
-		log.Printf("[upload-stat]\t%s\t%d\t%d\t%s\t[PID=%d]\t[TID=%d]\t[PPID=%d]\t[TGID=%d]\t[EUI=%d]\n", rn.address, len(message.Payload), elapsedTime, message.Tag, PID, TID, PPID, TGID, EUI)
+		log.Printf("[upload-stat]\t%s\t%d\t%d\t%s\t[PID=%d]\t[TID=%d]\t[PPID=%d]\t[EUI=%d]\n", rn.address, len(message.Payload), elapsedTime, message.Tag, PID, TID, PPID, EUI)
 	}
 }
 
