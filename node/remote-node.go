@@ -113,12 +113,17 @@ func (rn *RemoteNode) sendMessage(message *Message) {
 
 	PID := os.Getpid()
 	TID := unix.Gettid()
-	PPID := unix.Getppid()
-	TGID := unix.Getpgid()
+	PPID, err := unix.Getppid()
 	EUI := unix.Geteuid()
 
+	TGID, err := unix.Getpgid()
+	if err != nil {
+		//could not read the TGID
+		TGID = -314
+	}
+
 	startTime := time.Now().UnixNano()
-	err := rn.client.Call("GossipNode.Send", *message, nil)
+	err = rn.client.Call("GossipNode.Send", *message, nil)
 	endTime := time.Now().UnixNano()
 
 	elapsedTime := (endTime - startTime) / 1000000
