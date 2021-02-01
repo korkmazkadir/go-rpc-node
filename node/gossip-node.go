@@ -55,7 +55,8 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 
 	log.Println("Remote Node Version: 0.0.9")
 
-	node.bigMessageMutex = &sync.Mutex{}
+	// TODO: remove this later
+	//node.bigMessageMutex = &sync.Mutex{}
 
 	return node
 }
