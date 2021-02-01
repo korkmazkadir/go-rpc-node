@@ -27,7 +27,7 @@ type RemoteNode struct {
 }
 
 // NewRemoteNode creates a remote node
-func NewRemoteNode(address string, bigMessageMutex *sync.Mutex) (*RemoteNode, error) {
+func NewRemoteNode(address string) (*RemoteNode, error) {
 
 	//Connects to a remote node and creates a client
 	client, err := rpc.Dial("tcp", address)
@@ -41,8 +41,6 @@ func NewRemoteNode(address string, bigMessageMutex *sync.Mutex) (*RemoteNode, er
 	rn.waitingMessageChan = make(chan *Message, numberOfWaitingMessages)
 	rn.done = make(chan struct{}, 1)
 	rn.err = nil
-
-	rn.bigMessageMutex = bigMessageMutex
 
 	// Starts a thread to send messages
 	// There is only a single thread for a each peer

@@ -275,6 +275,8 @@ func (n *GossipNode) Wait() {
 // AddPeer adds a peer to the node
 func (n *GossipNode) AddPeer(remote *RemoteNode) error {
 
+	remote.bigMessageMutex = n.bigMessageMutex
+
 	err := remote.Connect(n.address)
 	if err != nil {
 		return err
@@ -288,10 +290,13 @@ func (n *GossipNode) AddPeer(remote *RemoteNode) error {
 
 func (n *GossipNode) acceptConnectionRequest(request ConnectionRequest) error {
 
-	rm, err := NewRemoteNode(request.SenderAddress, n.bigMessageMutex)
+	rm, err := NewRemoteNode(request.SenderAddress)
 	if err != nil {
 		return err
 	}
+
+	// sets the big message mutex
+	rm.bigMessageMutex = n.bigMessageMutex
 
 	n.log.Printf("New peer connection request accepted from %s \n", request.SenderAddress)
 	n.addPeer(rm)
