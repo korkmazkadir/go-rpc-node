@@ -53,7 +53,7 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 	node.incommingMessageFilter = filter.NewUniqueMessageFilter(120)
 	node.messageInventory = NewFileBackedMessageInventory()
 
-	log.Println("Remote Node Version: 0.0.8")
+	log.Println("Remote Node Version: 0.0.9")
 
 	node.bigMessageMutex = &sync.Mutex{}
 
