@@ -3,6 +3,7 @@ package node
 import (
 	"log"
 	"net/rpc"
+	"sync"
 	"time"
 )
 
@@ -22,10 +23,11 @@ type RemoteNode struct {
 	errorHandler       func(string, error)
 	log                *log.Logger
 	err                error
+	bigMessageMutex    *sync.Mutex
 }
 
 // NewRemoteNode creates a remote node
-func NewRemoteNode(address string) (*RemoteNode, error) {
+func NewRemoteNode(address string, bigMessageMutex *sync.Mutex) (*RemoteNode, error) {
 
 	//Connects to a remote node and creates a client
 	client, err := rpc.Dial("tcp", address)
@@ -39,6 +41,8 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 	rn.waitingMessageChan = make(chan *Message, numberOfWaitingMessages)
 	rn.done = make(chan struct{}, 1)
 	rn.err = nil
+
+	rn.bigMessageMutex = bigMessageMutex
 
 	// Starts a thread to send messages
 	// There is only a single thread for a each peer
@@ -107,6 +111,12 @@ func (rn *RemoteNode) mainLoop() {
 }
 
 func (rn *RemoteNode) sendMessage(message *Message) {
+
+	// A node can send only a single big message at once!!!
+	if rn.bigMessageMutex != nil && len(message.Payload) > printSendElapsedTimeLimit {
+		rn.bigMessageMutex.Lock()
+		defer rn.bigMessageMutex.Unlock()
+	}
 
 	startTime := time.Now()
 	err := rn.client.Call("GossipNode.Send", *message, nil)

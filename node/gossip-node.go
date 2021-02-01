@@ -34,6 +34,8 @@ type GossipNode struct {
 	messageInventory FileBackedMessageInventory
 
 	log *log.Logger
+
+	bigMessageMutex *sync.Mutex
 }
 
 // NewGossipNode creates a GossipNode, message buffer size is forward channel buffer size
@@ -52,6 +54,8 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 	node.messageInventory = NewFileBackedMessageInventory()
 
 	log.Println("Remote Node Version: 0.0.8")
+
+	node.bigMessageMutex = &sync.Mutex{}
 
 	return node
 }
@@ -284,7 +288,7 @@ func (n *GossipNode) AddPeer(remote *RemoteNode) error {
 
 func (n *GossipNode) acceptConnectionRequest(request ConnectionRequest) error {
 
-	rm, err := NewRemoteNode(request.SenderAddress)
+	rm, err := NewRemoteNode(request.SenderAddress, n.bigMessageMutex)
 	if err != nil {
 		return err
 	}
