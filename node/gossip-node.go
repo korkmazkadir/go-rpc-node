@@ -18,7 +18,7 @@ const inventoryRequestTag = "INVR"
 // if message payload length is smaller than inventoryMessageLimit,
 // it is sended directly. Otherwise an inv message sended
 // inventoryMessageLimit is in bytes
-const inventoryMessageLimit = 5000
+const inventoryMessageLimit = 50000
 
 //GossipNode keeps state of a gossip node
 type GossipNode struct {
@@ -184,7 +184,7 @@ func (n *GossipNode) sendExceptAllPeers(message *Message, exceptNodeAddress stri
 
 	var failedConnections []string
 
-	fanOutRandomPeers := n.getFanOutRandomPeers(exceptNodeAddress)
+	fanOutRandomPeers := n.getFanOutRandomPeers(exceptNodeAddress, len(message.Payload))
 	for _, peer := range fanOutRandomPeers {
 		err := peer.Send(message)
 		if err != nil {
@@ -341,7 +341,7 @@ func (n *GossipNode) createInventoryRequestMessage(message *Message) *Message {
 	return inventoryMessage
 }
 
-func (n *GossipNode) getFanOutRandomPeers(exceptNodeAddress string) []*RemoteNode {
+func (n *GossipNode) getFanOutRandomPeers(exceptNodeAddress string, messageLength int) []*RemoteNode {
 
 	var fanOutPeers []*RemoteNode
 
@@ -353,8 +353,8 @@ func (n *GossipNode) getFanOutRandomPeers(exceptNodeAddress string) []*RemoteNod
 		fanOutPeers = append(fanOutPeers, peer)
 	}
 
-	// if there are only enough peers, then return
-	if len(fanOutPeers) <= n.fanOut {
+	// if there are only enough peers or message is small enough
+	if len(fanOutPeers) <= n.fanOut || messageLength < inventoryMessageLimit {
 		return fanOutPeers
 	}
 
