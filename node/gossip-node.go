@@ -62,7 +62,7 @@ func NewGossipNode(app Application, messageBufferSize int, fanOut int, bigMessag
 
 	node.fanOut = fanOut
 
-	log.Println("Remote Node Version: 0.0.11")
+	log.Println("Remote Node Version: 0.0.14")
 
 	return node
 }
@@ -184,7 +184,7 @@ func (n *GossipNode) sendExceptAllPeers(message *Message, exceptNodeAddress stri
 
 	var failedConnections []string
 
-	fanOutRandomPeers := n.getFanOutRandomPeers(exceptNodeAddress, len(message.Payload))
+	fanOutRandomPeers := n.getFanOutRandomPeers(exceptNodeAddress, message.Tag)
 	for _, peer := range fanOutRandomPeers {
 		err := peer.Send(message)
 		if err != nil {
@@ -341,7 +341,7 @@ func (n *GossipNode) createInventoryRequestMessage(message *Message) *Message {
 	return inventoryMessage
 }
 
-func (n *GossipNode) getFanOutRandomPeers(exceptNodeAddress string, messageLength int) []*RemoteNode {
+func (n *GossipNode) getFanOutRandomPeers(exceptNodeAddress string, messageTag string) []*RemoteNode {
 
 	var fanOutPeers []*RemoteNode
 
@@ -354,7 +354,7 @@ func (n *GossipNode) getFanOutRandomPeers(exceptNodeAddress string, messageLengt
 	}
 
 	// if there are only enough peers or message is small enough
-	if len(fanOutPeers) <= n.fanOut || messageLength < inventoryMessageLimit {
+	if len(fanOutPeers) <= n.fanOut || messageTag != inventoryReadyTag {
 		return fanOutPeers
 	}
 
