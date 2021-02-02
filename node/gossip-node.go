@@ -62,7 +62,7 @@ func NewGossipNode(app Application, messageBufferSize int, fanOut int, bigMessag
 
 	node.fanOut = fanOut
 
-	log.Println("Remote Node Version: 0.0.10")
+	log.Println("Remote Node Version: 0.0.11")
 
 	return node
 }
