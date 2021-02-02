@@ -4,6 +4,7 @@ import (
 	"encoding/base32"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"net/rpc"
 	"sync"
@@ -36,10 +37,12 @@ type GossipNode struct {
 	log *log.Logger
 
 	bigMessageMutex *sync.Mutex
+
+	fanOut int
 }
 
 // NewGossipNode creates a GossipNode, message buffer size is forward channel buffer size
-func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *GossipNode {
+func NewGossipNode(app Application, messageBufferSize int, fanOut int, bigMessageMutex bool, logger *log.Logger) *GossipNode {
 	node := new(GossipNode)
 	node.App = app
 	node.peerMap = make(map[string]*RemoteNode)
@@ -53,10 +56,13 @@ func NewGossipNode(app Application, messageBufferSize int, logger *log.Logger) *
 	node.incommingMessageFilter = filter.NewUniqueMessageFilter(120)
 	node.messageInventory = NewFileBackedMessageInventory()
 
-	log.Println("Remote Node Version: 0.0.9")
+	if bigMessageMutex {
+		node.bigMessageMutex = &sync.Mutex{}
+	}
 
-	// TODO: remove this later
-	//node.bigMessageMutex = &sync.Mutex{}
+	node.fanOut = fanOut
+
+	log.Println("Remote Node Version: 0.0.10")
 
 	return node
 }
@@ -178,19 +184,13 @@ func (n *GossipNode) sendExceptAllPeers(message *Message, exceptNodeAddress stri
 
 	var failedConnections []string
 
-	for address, peer := range n.peerMap {
-
-		if address == exceptNodeAddress {
-			continue
-		}
-
-		// it is sending an inventory message not the actual message
+	fanOutRandomPeers := n.getFanOutRandomPeers(exceptNodeAddress)
+	for _, peer := range fanOutRandomPeers {
 		err := peer.Send(message)
 		if err != nil {
-			n.log.Printf("Error occured during sending a message to peer %s. Error: %s\n", address, err)
-			failedConnections = append(failedConnections, address)
+			n.log.Printf("Error occured during sending a message to peer %s. Error: %s\n", peer.address, err)
+			failedConnections = append(failedConnections, peer.address)
 		}
-
 	}
 
 	for _, failedNodeAddress := range failedConnections {
@@ -339,4 +339,29 @@ func (n *GossipNode) createInventoryRequestMessage(message *Message) *Message {
 	inventoryMessage.Payload = message.Payload
 
 	return inventoryMessage
+}
+
+func (n *GossipNode) getFanOutRandomPeers(exceptNodeAddress string) []*RemoteNode {
+
+	var fanOutPeers []*RemoteNode
+
+	for address, peer := range n.peerMap {
+		if address == exceptNodeAddress {
+			continue
+		}
+
+		fanOutPeers = append(fanOutPeers, peer)
+	}
+
+	// if there are only enough peers, then return
+	if len(fanOutPeers) <= n.fanOut {
+		return fanOutPeers
+	}
+
+	for len(fanOutPeers) > n.fanOut {
+		indexToRemove := rand.Intn(len(fanOutPeers))
+		fanOutPeers = append(fanOutPeers[:indexToRemove], fanOutPeers[indexToRemove+1:]...)
+	}
+
+	return fanOutPeers
 }
