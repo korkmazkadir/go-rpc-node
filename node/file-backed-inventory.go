@@ -26,7 +26,7 @@ func NewFileBackedMessageInventory() FileBackedMessageInventory {
 func (f FileBackedMessageInventory) Put(message *Message) string {
 
 	hash := message.Base32EncodedHash()
-	file, err := os.OpenFile(fmt.Sprintf("./%s/%d/%s", folder, f.pid, hash), os.O_EXCL|os.O_CREATE|os.O_WRONLY|os.O_SYNC, 0644)
+	file, err := os.OpenFile(fmt.Sprintf("./%s/%d/%s", folder, f.pid, hash), os.O_CREATE|os.O_WRONLY, 0644)
 	//if err == os.ErrExist {
 	if err != nil {
 		log.Println(err)

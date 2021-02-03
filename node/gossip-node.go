@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/rpc"
 	"sync"
+	"time"
 
 	"github.com/korkmazkadir/go-rpc-node/filter"
 )
@@ -62,7 +63,7 @@ func NewGossipNode(app Application, messageBufferSize int, fanOut int, bigMessag
 
 	node.fanOut = fanOut
 
-	log.Println("Remote Node Version: 0.0.14")
+	log.Println("Remote Node Version: 0.0.17")
 
 	return node
 }
@@ -168,7 +169,11 @@ func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 	if len(message.Payload) > inventoryMessageLimit {
 		// if the length of the nessage payload is bigger than the inventoryMessageLimit
 		// an inventory message sended to peers
+
+		startTime := time.Now()
 		n.messageInventory.Put(&message)
+		log.Printf("[Inventory-Put] Block Hash: %s Elapsed time: %d \n", message.Base64EncodedHash(), time.Since(startTime).Milliseconds())
+
 		inventoryMessage := n.createInventoryReadyMessage(&message)
 		n.sendExceptAllPeers(inventoryMessage, exceptNodeAddress)
 	} else {
@@ -299,7 +304,7 @@ func (n *GossipNode) acceptConnectionRequest(request ConnectionRequest) error {
 	// sets the big message mutex
 	rm.bigMessageMutex = n.bigMessageMutex
 
-	n.log.Printf("New peer connection request accepted from %s \n", request.SenderAddress)
+	log.Printf("New peer connection request accepted from %s \n", request.SenderAddress)
 	n.addPeer(rm)
 
 	return nil
