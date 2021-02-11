@@ -76,7 +76,9 @@ func (rn *RemoteNode) Close() {
 		// closes rpc client
 		rn.client.Close()
 		// closes channel
-		close(rn.waitingMessageChan)
+		// closing channel does not seems necessary here
+		// think about it later
+		// close(rn.waitingMessageChan)
 	}
 }
 
