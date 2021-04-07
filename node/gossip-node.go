@@ -172,7 +172,7 @@ func (n *GossipNode) forward(message Message, exceptNodeAddress string) {
 
 		startTime := time.Now()
 		n.messageInventory.Put(&message)
-		log.Printf("[Inventory-Put] Block Hash: %s Elapsed time: %d \n", message.Base64EncodedHash(), time.Since(startTime).Milliseconds())
+		log.Printf("[Inventory-Put]\t%d\n", time.Since(startTime).Milliseconds())
 
 		inventoryMessage := n.createInventoryReadyMessage(&message)
 		n.sendExceptAllPeers(inventoryMessage, exceptNodeAddress)
