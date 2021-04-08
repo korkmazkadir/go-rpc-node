@@ -1,7 +1,6 @@
 package node
 
 import (
-	"encoding/base32"
 	"fmt"
 	"log"
 	"math/rand"
@@ -33,7 +32,7 @@ type GossipNode struct {
 	incommingMessageFilter *filter.UniqueMessageFilter
 
 	// messageInventory is not thread safe use with care
-	messageInventory FileBackedMessageInventory
+	messageInventory *Inventory
 
 	log *log.Logger
 
@@ -55,7 +54,7 @@ func NewGossipNode(app Application, messageBufferSize int, fanOut int, bigMessag
 	// 60 seconds TTL seems reasonable for me
 	// I should get this as a parameter
 	node.incommingMessageFilter = filter.NewUniqueMessageFilter(120)
-	node.messageInventory = NewFileBackedMessageInventory()
+	node.messageInventory = NewInventory()
 
 	if bigMessageMutex {
 		node.bigMessageMutex = &sync.Mutex{}
@@ -98,7 +97,7 @@ func (n *GossipNode) Send(message Message, reply *Response) error {
 
 			n.log.Printf("inventory request message from %s\n", message.Sender)
 			requestedMessageHash := message.Payload
-			requestedMessage, err := n.messageInventory.Get(base32.StdEncoding.EncodeToString(requestedMessageHash))
+			requestedMessage, err := n.messageInventory.Get(string(requestedMessageHash))
 			if err != nil {
 				panic(fmt.Errorf("An error occured while getting message from the inventory: %s", err))
 			}
