@@ -3,7 +3,6 @@ package node
 import (
 	"log"
 	"net/rpc"
-	"sync"
 	"time"
 )
 
@@ -12,18 +11,21 @@ const numberOfWaitingMessages = 100
 // if message payload length bigger than printSendElapsedTimeLimit,
 // elapsed time to send the message is logged
 // printSendElapsedTimeLimit is in bytes
-const printSendElapsedTimeLimit = 5000
+const bigMessageSize = 25000
 
 // RemoteNode describes remote interface of a gossip node
 type RemoteNode struct {
-	address            string
-	client             *rpc.Client
+	address string
+	client  *rpc.Client
+	//to send small messages
+	clientSmall *rpc.Client
+
 	waitingMessageChan chan *Message
 	done               chan struct{}
 	errorHandler       func(string, error)
 	log                *log.Logger
 	err                error
-	bigMessageMutex    *sync.Mutex
+	rateLimiter        *RateLimiter
 }
 
 // NewRemoteNode creates a remote node
@@ -35,8 +37,15 @@ func NewRemoteNode(address string) (*RemoteNode, error) {
 		return nil, err
 	}
 
+	//Connects to a remote node and creates a client
+	clientSmall, err := rpc.Dial("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+
 	rn := new(RemoteNode)
 	rn.client = client
+	rn.clientSmall = clientSmall
 	rn.address = address
 	rn.waitingMessageChan = make(chan *Message, numberOfWaitingMessages)
 	rn.done = make(chan struct{}, 1)
@@ -112,12 +121,26 @@ func (rn *RemoteNode) mainLoop() {
 
 func (rn *RemoteNode) sendMessage(message *Message) {
 
-	// A node can send only a single big message at once!!!
-	if rn.bigMessageMutex != nil && len(message.Payload) > printSendElapsedTimeLimit {
-		rn.bigMessageMutex.Lock()
-		defer rn.bigMessageMutex.Unlock()
+	// sending small messsages
+	if len(message.Payload) < bigMessageSize {
+		rn.sendSmallMessage(message)
+		return
 	}
 
+	// sending a big message without rate limiting
+	if rn.rateLimiter == nil {
+		rn.sendBigMessage(message)
+		return
+	}
+
+	// sending a big message with rate limiting
+	// cost of the message equals to cost of the payload
+	cost := len(message.Payload)
+	rn.rateLimiter.ApplyRateLimit(func() { rn.sendBigMessage(message) }, cost)
+
+}
+
+func (rn *RemoteNode) sendBigMessage(message *Message) {
 	startTime := time.Now()
 	err := rn.client.Call("GossipNode.Send", *message, nil)
 	elapsedTime := time.Since(startTime).Milliseconds()
@@ -129,8 +152,15 @@ func (rn *RemoteNode) sendMessage(message *Message) {
 		return
 	}
 
-	if len(message.Payload) > printSendElapsedTimeLimit {
-		log.Printf("[upload-stat]\t%s\t%d\t%d\t%s\n", rn.address, len(message.Payload), elapsedTime, message.Tag)
+	log.Printf("[upload-stat]\t%s\t%d\t%d\t%s\n", rn.address, len(message.Payload), elapsedTime, message.Tag)
+}
+
+func (rn *RemoteNode) sendSmallMessage(message *Message) {
+	err := rn.clientSmall.Call("GossipNode.Send", *message, nil)
+	if err != nil {
+		rn.err = err
+		log.Printf("An error occured during sending message to node %s %s. This will close the connection to the remote node! \n", rn.address, err)
+		rn.Close()
 	}
 }
 

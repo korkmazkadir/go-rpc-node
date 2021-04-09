@@ -36,7 +36,7 @@ type GossipNode struct {
 
 	log *log.Logger
 
-	bigMessageMutex *sync.Mutex
+	rateLimiter *RateLimiter
 
 	fanOut int
 }
@@ -57,7 +57,9 @@ func NewGossipNode(app Application, messageBufferSize int, fanOut int, bigMessag
 	node.messageInventory = NewInventory()
 
 	if bigMessageMutex {
-		node.bigMessageMutex = &sync.Mutex{}
+		tokens := 2500000 //20Mbps equals 2500000 bytes
+		log.Printf("Rate limiting enabled with %d tokens\n", tokens)
+		node.rateLimiter = NewRateLimiter(tokens)
 	}
 
 	node.fanOut = fanOut
@@ -280,7 +282,7 @@ func (n *GossipNode) Wait() {
 // AddPeer adds a peer to the node
 func (n *GossipNode) AddPeer(remote *RemoteNode) error {
 
-	remote.bigMessageMutex = n.bigMessageMutex
+	remote.rateLimiter = n.rateLimiter
 
 	err := remote.Connect(n.address)
 	if err != nil {
@@ -301,7 +303,7 @@ func (n *GossipNode) acceptConnectionRequest(request ConnectionRequest) error {
 	}
 
 	// sets the big message mutex
-	rm.bigMessageMutex = n.bigMessageMutex
+	rm.rateLimiter = n.rateLimiter
 
 	log.Printf("New peer connection request accepted from %s \n", request.SenderAddress)
 	n.addPeer(rm)
