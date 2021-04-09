@@ -1,7 +1,5 @@
 package node
 
-import "log"
-
 type job struct {
 	op       func()
 	cost     int
@@ -51,8 +49,6 @@ func (r *RateLimiter) mainLoop() {
 	for {
 		select {
 		case operation := <-r.operationChan:
-
-			log.Println(r.availableTokens)
 
 			if r.availableTokens < 0 {
 				// waits for enough token
