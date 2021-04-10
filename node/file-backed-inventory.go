@@ -1,6 +1,7 @@
 package node
 
 import (
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -52,7 +53,9 @@ func (f FileBackedMessageInventory) Put(message *Message) string {
 // Get read message from the disc
 func (f FileBackedMessageInventory) Get(hash string) (*Message, error) {
 
-	file, err := os.OpenFile(fmt.Sprintf("./%s/%d/%s", folder, f.pid, hash), os.O_RDONLY, 0644)
+	key := base32.StdEncoding.EncodeToString([]byte(hash))
+
+	file, err := os.OpenFile(fmt.Sprintf("./%s/%d/%s", folder, f.pid, key), os.O_RDONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
