@@ -32,7 +32,7 @@ type GossipNode struct {
 	incommingMessageFilter *filter.UniqueMessageFilter
 
 	// messageInventory is not thread safe use with care
-	messageInventory *Inventory
+	messageInventory FileBackedMessageInventory
 
 	log *log.Logger
 
@@ -54,7 +54,7 @@ func NewGossipNode(app Application, messageBufferSize int, fanOut int, bigMessag
 	// 60 seconds TTL seems reasonable for me
 	// I should get this as a parameter
 	node.incommingMessageFilter = filter.NewUniqueMessageFilter(120)
-	node.messageInventory = NewInventory()
+	node.messageInventory = NewFileBackedMessageInventory()
 
 	if bigMessageMutex {
 		tokens := 2500000 //20Mbps equals 2500000 bytes
