@@ -124,7 +124,7 @@ func (rn *RemoteNode) sendMessage(message *Message) {
 
 	// sending small messsages
 	if len(message.Payload) < bigMessageSize {
-		rn.sendSmallMessage(message)
+		go rn.sendSmallMessage(message)
 		return
 	}
 
