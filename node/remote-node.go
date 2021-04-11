@@ -112,7 +112,8 @@ func (rn *RemoteNode) mainLoop() {
 
 		case m := <-rn.waitingMessageChan:
 
-			go rn.sendMessage(m)
+			//go rn.sendMessage(m)
+			rn.sendMessage(m)
 
 		}
 
